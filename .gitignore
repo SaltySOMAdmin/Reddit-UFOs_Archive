@@ -1,0 +1,5 @@
+# Ignore the config.py file
+config.py
+webhook.txt
+error_webhook.txt
+cron_webhook.txt
