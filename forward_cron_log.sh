@@ -2,7 +2,7 @@
 
 # Variables
 LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/cron_log.txt"
-source "/home/ubuntu/Reddit-UFOs_Archive/cron_webhook.txt"  # Load webhook URL
+source "/home/ubuntu/Reddit-UFOs_Archive/cron_webhook.txt"  # Load webhook URL or file containing it
 
 # Check if the log file exists
 if [ ! -f "$LOG_FILE" ]; then
