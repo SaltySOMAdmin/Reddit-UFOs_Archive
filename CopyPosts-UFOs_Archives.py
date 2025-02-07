@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
-
+#test
 # Set up logging
 logging.basicConfig(filename='error_log.txt', level=logging.ERROR, 
                     format='%(asctime)s %(levelname)s: %(message)s')
