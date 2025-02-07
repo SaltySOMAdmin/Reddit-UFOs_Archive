@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/error_log.txt"
+LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/error_log.txt" # log location
 source "/home/ubuntu/Reddit-UFOs_Archive/error_webhook.txt"  # Replace with the actual path to your config.txt file or the webhook url directly
 
 # Check if the log file exists
