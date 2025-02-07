@@ -8,16 +8,16 @@ import config  # Import the config file with credentials
 import re
 
 # Set up logging
-logging.basicConfig(filename='removed_posts_log.txt', level=logging.INFO, 
+logging.basicConfig(filename='removed_posts_log.txt', level=logging.DEBUG, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
 reddit = praw.Reddit(
-    client_id=config.source_client_id,
-    client_secret=config.source_client_secret,
-    password=config.source_password,
-    username=config.source_username,
-    user_agent=config.source_user_agent
+    client_id=config.destination_client_id,
+    client_secret=config.destination_client_secret,
+    password=config.destination_password,
+    username=config.destination_username,
+    user_agent=config.destination_user_agent
 )
 
 # Destination subreddit
@@ -27,28 +27,47 @@ destination_subreddit = reddit.subreddit('UFOs_Archive')
 current_time = datetime.now(timezone.utc)
 cutoff_time = current_time - timedelta(days=1)
 
+logging.info("Starting script: Checking posts from the last 24 hours.")
+
 # Check posts in /r/UFOs_Archive
 for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
     try:
         post_time = datetime.fromtimestamp(archived_submission.created_utc, timezone.utc)
         if post_time < cutoff_time:
+            logging.debug(f"Skipping older post: {archived_submission.id}")
             break  # Stop processing older posts
+
+        logging.info(f"Checking archived post: {archived_submission.id} - {archived_submission.title}")
+
+        # Ensure all comments are loaded
+        archived_submission.comments.replace_more(limit=0)
 
         for comment in archived_submission.comments:
             match = re.search(r'\[Here\]\((https://www\.reddit\.com/r/ufos/comments/[^)]+)\)', comment.body)
             if match:
                 original_post_url = match.group(1)
                 original_post_id = original_post_url.split("/")[-2]
-                
-                original_submission = reddit.submission(id=original_post_id)
-                if original_submission.banned_by or original_submission.selftext == "[deleted]":
-                    archived_submission.mod.flair(text="Removed")
-                    logging.info(f"Updated flair for archived post: {archived_submission.id}")
-                    break  # Stop checking once updated
-        
+
+                logging.debug(f"Found original post link: {original_post_url}")
+
+                try:
+                    original_submission = reddit.submission(id=original_post_id)
+
+                    if original_submission.removed_by_category or original_submission.selftext == "[deleted]":
+                        archived_submission.mod.flair(text="Removed")
+                        logging.info(f"Updated flair for archived post: {archived_submission.id}")
+                        break  # Stop checking once updated
+                    else:
+                        logging.debug(f"Original post still exists: {original_post_id}")
+
+                except Exception as e:
+                    logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
+
         time.sleep(5)  # Rate limit handling
     
     except (RequestException, ResponseException, RedditAPIException) as ex:
         logging.error(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
     except Exception as e:
         logging.error(f"General error for archived post {archived_submission.id}: {str(e)}")
+
+logging.info("Script execution completed.")
