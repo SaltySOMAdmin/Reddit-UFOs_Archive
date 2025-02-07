@@ -30,7 +30,7 @@ archives_reddit = praw.Reddit(
 )
 
 # File to store processed post IDs
-PROCESSED_FILE = "/home/ubuntu/sightings_backup/processed_posts.txt"
+PROCESSED_FILE = "/home/ubuntu/sightings_backup/Reddit-UFOs_Archive/processed_posts.txt"
 
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Variables
-LOG_FILE="/home/ubuntu/sightings_backup/error_log.txt"
-source "/home/ubuntu/sightings_backup/error_webhook.txt"  # Replace with the actual path to your config.txt file
+LOG_FILE="/home/ubuntu/sightings_backup/Reddit-UFOs_Archive/error_log.txt"
+source "/home/ubuntu/sightings_backup/Reddit-UFOs_Archive/error_webhook.txt"  # Replace with the actual path to your config.txt file
 
 # Check if the log file exists
 if [ ! -f "$LOG_FILE" ]; then
