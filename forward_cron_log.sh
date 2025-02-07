@@ -2,7 +2,7 @@
 
 # Variables
 LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/cron_log.txt"
-source "/home/ubuntu/Reddit-UFOs_Archive/cron_webhook.txt"  # Load the webhook URL
+source "/home/ubuntu/Reddit-UFOs_Archive/cron_webhook.txt"  # Load webhook URL
 
 # Check if the log file exists
 if [ ! -f "$LOG_FILE" ]; then
@@ -19,8 +19,11 @@ fi
 # Read the log file line by line and send each line as a message to Discord
 while IFS= read -r line
 do
+    # Strip newlines and carriage returns
+    cleaned_line=$(echo "$line" | tr -d '\n' | tr -d '\r')
+
     # Escape special characters using jq to ensure valid JSON format
-    json_payload=$(jq -nc --arg content "$line" '{content: $content}' 2>/dev/null)
+    json_payload=$(jq -nc --arg content "$cleaned_line" '{content: $content}' 2>/dev/null)
 
     # Verify that jq processed the line correctly
     if [ $? -ne 0 ] || [ -z "$json_payload" ]; then
@@ -35,7 +38,8 @@ do
 
     # Check for Discord API errors
     if [[ "$response" == *'"code": 50109'* ]]; then
-        echo "Error: Invalid JSON format detected in Discord API response. Skipping line: $line" >> error_log.txt
+        echo "Error: Invalid JSON format detected in Discord API response. Logging payload..." >> error_log.txt
+        echo "Payload: $json_payload" >> error_log.txt
         continue
     fi
 
