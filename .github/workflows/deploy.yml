@@ -22,5 +22,3 @@ jobs:
           script: |
             cd /home/ubuntu/Reddit-UFOs_Archive/
             git pull origin main
-            chmod +x forward_cron_log.sh
-            chmod +x forward_error_log.sh
