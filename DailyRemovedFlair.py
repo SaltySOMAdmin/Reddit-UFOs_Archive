@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
+import re
 
 # Set up logging
 logging.basicConfig(filename='removed_posts_log.txt', level=logging.INFO, 
@@ -19,35 +20,27 @@ reddit = praw.Reddit(
     user_agent=config.source_user_agent
 )
 
-# Source and destination subreddits
-source_subreddit = reddit.subreddit('ufos')
+# Destination subreddit
 destination_subreddit = reddit.subreddit('UFOs_Archive')
 
-# Get current time and calculate cutoff for the last 24 hours
-current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(days=1)
-
-# Scan posts from the last day
-for submission in source_subreddit.new(limit=1000):  # Adjust limit if needed
+# Check posts in /r/UFOs_Archive
+for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
     try:
-        post_time = datetime.fromtimestamp(submission.created_utc, timezone.utc)
-        if post_time < cutoff_time:
-            break  # Stop processing older posts
-        
-        # Check if the post was removed by a mod
-        if submission.banned_by:  # None if not removed by a mod
-            logging.info(f"Removed post found: {submission.title} ({submission.id})")
-            
-            # Search for the corresponding post in the archive
-            for archived_submission in destination_subreddit.new(limit=1000):
-                if archived_submission.title == submission.title:
+        for comment in archived_submission.comments:
+            match = re.search(r'\[Here\]\((https://www\.reddit\.com/r/ufos/comments/[^)]+)\)', comment.body)
+            if match:
+                original_post_url = match.group(1)
+                original_post_id = original_post_url.split("/")[-2]
+                
+                original_submission = reddit.submission(id=original_post_id)
+                if original_submission.banned_by or original_submission.selftext == "[deleted]":
                     archived_submission.mod.flair(text="Removed")
                     logging.info(f"Updated flair for archived post: {archived_submission.id}")
-                    break  # Stop searching once found
+                    break  # Stop checking once updated
         
         time.sleep(5)  # Rate limit handling
     
     except (RequestException, ResponseException, RedditAPIException) as ex:
-        logging.error(f"Reddit API error for post {submission.id}: {str(ex)}")
+        logging.error(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
     except Exception as e:
-        logging.error(f"General error for post {submission.id}: {str(e)}")
+        logging.error(f"General error for archived post {archived_submission.id}: {str(e)}")
