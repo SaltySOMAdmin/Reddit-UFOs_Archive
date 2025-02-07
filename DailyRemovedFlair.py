@@ -23,9 +23,17 @@ reddit = praw.Reddit(
 # Destination subreddit
 destination_subreddit = reddit.subreddit('UFOs_Archive')
 
+# Get current time and calculate cutoff for the last 24 hours
+current_time = datetime.now(timezone.utc)
+cutoff_time = current_time - timedelta(days=1)
+
 # Check posts in /r/UFOs_Archive
 for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
     try:
+        post_time = datetime.fromtimestamp(archived_submission.created_utc, timezone.utc)
+        if post_time < cutoff_time:
+            break  # Stop processing older posts
+
         for comment in archived_submission.comments:
             match = re.search(r'\[Here\]\((https://www\.reddit\.com/r/ufos/comments/[^)]+)\)', comment.body)
             if match:
