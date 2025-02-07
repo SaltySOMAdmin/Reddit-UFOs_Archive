@@ -2,7 +2,7 @@ import praw
 import time
 import logging
 from datetime import datetime, timedelta, timezone
-from prawcore.exceptions import RequestException, ResponseException
+from prawcore.exceptions import RequestException, ResponseException, NotFound
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 import re
@@ -52,14 +52,17 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
 
                 try:
                     original_submission = reddit.submission(id=original_post_id)
-
+                    
                     if original_submission.removed_by_category or original_submission.selftext == "[deleted]":
                         archived_submission.mod.flair(text="Removed")
                         logging.info(f"Updated flair for archived post: {archived_submission.id}")
                         break  # Stop checking once updated
                     else:
                         logging.debug(f"Original post still exists: {original_post_id}")
-
+                except NotFound:
+                    archived_submission.mod.flair(text="Removed")
+                    logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
+                    break
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
 
