@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/cron_log.txt" # log location created in cron
+LOG_FILE="/home/ubuntu/Reddit-UFOs_Archive/cron_log.txt" # log location specified in cron
 source "/home/ubuntu/Reddit-UFOs_Archive/cron_webhook.txt"  # Load webhook URL or file containing it
 
 # Check if the log file exists
