@@ -20,5 +20,5 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /home/ubuntu/sightings_backup/Reddit-UFOs_Archive/
+            cd /home/ubuntu/
             git pull origin main
