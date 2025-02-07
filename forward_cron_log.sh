@@ -19,15 +19,25 @@ fi
 # Read the log file line by line and send each line as a message to Discord
 while IFS= read -r line
 do
+    # Escape special characters using jq to ensure valid JSON format
+    json_payload=$(jq -nc --arg content "$line" '{content: $content}')
+    
     # Send each line to the Discord webhook as a message
-    curl -s -X POST "$WEBHOOK_URL" \
+    response=$(curl -s -X POST "$WEBHOOK_URL" \
     -H "Content-Type: application/json" \
-    -d "{\"content\": \"$line\"}"
+    -d "$json_payload")
+
+    # Check if Discord API returned an error
+    if [[ "$response" == *'"code": 50109'* ]]; then
+        echo "Error: Invalid JSON format detected."
+        exit 1
+    fi
 done < "$LOG_FILE"
 
 # Check if the messages were sent successfully
 if [ $? -eq 0 ]; then
     echo "Log file lines successfully posted to Discord."
+    
     # Optionally delete the log file after posting
     rm -f "$LOG_FILE"
     if [ $? -eq 0 ]; then
