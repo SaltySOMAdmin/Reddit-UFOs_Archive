@@ -29,6 +29,27 @@ cutoff_time = current_time - timedelta(days=1)
 
 logging.info("Starting script: Checking posts from the last 24 hours.")
 
+# List of removal flairs in /r/ufos
+removal_flairs = [
+    "Rule 1: Follow the Standards of Civility",
+    "Rule 2: Posts must be on-topic",
+    "Rule 3: Be substantive",
+    "Rule 14: Off-topic political discussion",
+    "Rule 4: No duplicate posts",
+    "Rule 5: No commercial activity",
+    "Rule 6: Bad title",
+    "Rule 7: Posting limits",
+    "Rule 8: No memes",
+    "Rule 9: Link posts must include a submission statement",
+    "Rule 11: Common Questions",
+    "Posting Guidelines for Sightings",
+    "Better suited for the current megathread",
+    "Rule 12: Meta-posts must be posted in r/ufosmeta",
+    "Rule 13: Low effort comments regarding public figures"
+]
+
+removed_flair_id = "2aae3c82-e59b-11ef-82e4-264414cc8e5f"
+
 # Check posts in /r/UFOs_Archive
 for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
     try:
@@ -52,23 +73,17 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
 
                 try:
                     original_submission = reddit.submission(id=original_post_id)
-                    time.sleep(2)  # Slight rate limit handling after fetching submission
-                    
-                    # **Check multiple conditions for removal**
-                    if (
-                        original_submission.removed_by_category is not None or  # Mod removed
-                        original_submission.selftext == "[deleted]" or  # User deleted (self-posts)
-                        original_submission.author is None  # User deleted (all post types)
-                    ):
-                        logging.info(f"Marking archived post {archived_submission.id} as removed.")
-                        archived_submission.mod.flair(text="Removed")
+                    time.sleep(5)  # Rate limit handling after fetching submission
+
+                    if original_submission.removed_by_category or original_submission.selftext == "[deleted]" or (original_submission.link_flair_text and original_submission.link_flair_text in removal_flairs):
+                        archived_submission.mod.flair(flair_template_id=removed_flair_id)
                         logging.info(f"Updated flair for archived post: {archived_submission.id}")
                         break  # Stop checking once updated
                     else:
                         logging.debug(f"Original post still exists: {original_post_id}")
                 except NotFound:
-                    logging.info(f"Original post {original_post_id} not found, marking archived post as removed.")
-                    archived_submission.mod.flair(text="Removed")
+                    archived_submission.mod.flair(flair_template_id=removed_flair_id)
+                    logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
                     break
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
