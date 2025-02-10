@@ -105,16 +105,32 @@ for submission in source_subreddit.new():
                 original_media_url = video_url
 
         new_post = None
+        source_flair_text = submission.link_flair_text  # Get the source post's flair text
+
         # Repost to the destination subreddit
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
             if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-                new_post = destination_subreddit.submit_image(title, image_path=media_url, flair_id=None)
+                new_post = destination_subreddit.submit_image(title, image_path=media_url)
             elif media_url.endswith('mp4'):
-                new_post = destination_subreddit.submit_video(title, video_path=media_url, flair_id=None)
+                new_post = destination_subreddit.submit_video(title, video_path=media_url)
         else:
             new_post = destination_subreddit.submit(title, url=submission.url)
+
+        # Apply flair if a matching one exists
+        if new_post and source_flair_text:
+            matching_flair = None
+            for flair in destination_subreddit.flair.link_templates:
+                if flair['text'] == source_flair_text:
+                    matching_flair = flair['id']
+                    break
+
+            if matching_flair:
+                new_post.flair.select(matching_flair)
+                logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
+            else:
+                logging.warning(f"No matching flair found for: {source_flair_text}")
 
         # Comment on the new post
         if new_post:
