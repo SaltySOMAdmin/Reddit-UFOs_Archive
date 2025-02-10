@@ -52,17 +52,23 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
 
                 try:
                     original_submission = reddit.submission(id=original_post_id)
-                    time.sleep(5)  # Rate limit handling after fetching submission
+                    time.sleep(2)  # Slight rate limit handling after fetching submission
                     
-                    if original_submission.removed_by_category or original_submission.selftext == "[deleted]":
+                    # **Check multiple conditions for removal**
+                    if (
+                        original_submission.removed_by_category is not None or  # Mod removed
+                        original_submission.selftext == "[deleted]" or  # User deleted (self-posts)
+                        original_submission.author is None  # User deleted (all post types)
+                    ):
+                        logging.info(f"Marking archived post {archived_submission.id} as removed.")
                         archived_submission.mod.flair(text="Removed")
                         logging.info(f"Updated flair for archived post: {archived_submission.id}")
                         break  # Stop checking once updated
                     else:
                         logging.debug(f"Original post still exists: {original_post_id}")
                 except NotFound:
+                    logging.info(f"Original post {original_post_id} not found, marking archived post as removed.")
                     archived_submission.mod.flair(text="Removed")
-                    logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
                     break
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
