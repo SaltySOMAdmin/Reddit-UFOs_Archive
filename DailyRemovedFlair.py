@@ -8,7 +8,7 @@ import config  # Import the config file with credentials
 import re
 
 # Set up logging
-logging.basicConfig(filename='removed_posts_log.txt', level=logging.DEBUG, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/removed_posts_log.txt', level=logging.DEBUG, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -20,8 +20,7 @@ reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
-# Source and destination subreddits
-source_subreddit = reddit.subreddit('UFOs')
+# Destination subreddit
 destination_subreddit = reddit.subreddit('UFOs_Archive')
 
 # Get current time and calculate cutoff for the last 24 hours
@@ -30,25 +29,49 @@ cutoff_time = current_time - timedelta(days=1)
 
 logging.info("Starting script: Checking posts from the last 24 hours.")
 
-try:
-    for archived_post in destination_subreddit.new(limit=100):  # Adjust limit as needed
-        if archived_post.created_utc < cutoff_time.timestamp():
-            continue
-        
-        source_post = None
-        for post in source_subreddit.search(archived_post.title, sort='new', time_filter='week'):
-            if post.title == archived_post.title:
-                source_post = post
-                break
+# Check posts in /r/UFOs_Archive
+for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
+    try:
+        post_time = datetime.fromtimestamp(archived_submission.created_utc, timezone.utc)
+        if post_time < cutoff_time:
+            logging.debug(f"Skipping older post: {archived_submission.id}")
+            break  # Stop processing older posts
 
-        if source_post and source_post.link_flair_text:
-            try:
-                archived_post.mod.flair(text=source_post.link_flair_text)
-                logging.info(f"Updated flair for archived post: {archived_post.title}")
-            except RedditAPIException as e:
-                logging.error(f"Failed to set flair for post {archived_post.id}: {e}")
-        else:
-            logging.info(f"No matching source post found or no flair present for: {archived_post.title}")
+        logging.info(f"Checking archived post: {archived_submission.id} - {archived_submission.title}")
 
-except (RequestException, ResponseException, NotFound) as e:
-    logging.error(f"Error fetching posts: {e}")
+        # Ensure all comments are loaded
+        archived_submission.comments.replace_more(limit=0)
+
+        for comment in archived_submission.comments:
+            match = re.search(r'\[Here\]\((https://www\.reddit\.com/r/ufos/comments/[^)]+)\)', comment.body)
+            if match:
+                original_post_url = match.group(1)
+                original_post_id = original_post_url.split("/")[-2]
+
+                logging.debug(f"Found original post link: {original_post_url}")
+
+                try:
+                    original_submission = reddit.submission(id=original_post_id)
+                    time.sleep(5)  # Rate limit handling after fetching submission
+                    
+                    if original_submission.removed_by_category or original_submission.selftext == "[deleted]":
+                        archived_submission.mod.flair(text="Removed")
+                        logging.info(f"Updated flair for archived post: {archived_submission.id}")
+                        break  # Stop checking once updated
+                    else:
+                        logging.debug(f"Original post still exists: {original_post_id}")
+                except NotFound:
+                    archived_submission.mod.flair(text="Removed")
+                    logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
+                    break
+                except Exception as e:
+                    logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
+
+        time.sleep(5)  # Rate limit handling after each post check
+    
+    except (RequestException, ResponseException, RedditAPIException) as ex:
+        logging.error(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
+    except Exception as e:
+        logging.error(f"General error for archived post {archived_submission.id}: {str(e)}")
+
+logging.info("Script execution completed.")
