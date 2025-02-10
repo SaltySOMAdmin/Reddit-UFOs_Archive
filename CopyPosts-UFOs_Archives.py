@@ -139,6 +139,9 @@ for submission in source_subreddit.new():
                 comment_body += f"\n\nDirect link to media: [Media Here]({original_media_url})"
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
+                
+            # Add the explicit original post ID
+            comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
             
             # Check if the comment body is too long
             if len(comment_body) > 10000:

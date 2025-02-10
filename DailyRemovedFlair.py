@@ -64,12 +64,10 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
         archived_submission.comments.replace_more(limit=0)
 
         for comment in archived_submission.comments:
-            match = re.search(r'\[Here\]\((https://www\.reddit\.com/r/ufos/comments/[^)]+)\)', comment.body)
+            match = re.search(r'\*\*Original Post ID:\*\* `([a-z0-9]+)`', comment.body)
             if match:
-                original_post_url = match.group(1)
-                original_post_id = original_post_url.split("/")[-2]
-
-                logging.debug(f"Found original post link: {original_post_url}")
+                original_post_id = match.group(1)
+                logging.debug(f"Extracted original post ID: {original_post_id}")
 
                 try:
                     original_submission = reddit.submission(id=original_post_id)
