@@ -23,11 +23,11 @@ reddit = praw.Reddit(
 # Destination subreddit
 destination_subreddit = reddit.subreddit('UFOs_Archive')
 
-# Get current time and calculate cutoff for the last 24 hours
+# Get current time and calculate cutoff for the last 8 hours
 current_time = datetime.now(timezone.utc)
 cutoff_time = current_time - timedelta(hours=8)
 
-logging.info("Starting script: Checking posts from the last 24 hours.")
+print("Starting script: Checking posts from the last 8 hours.")
 
 # List of removal flairs in /r/ufos
 removal_flairs = [
@@ -58,7 +58,7 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
             logging.debug(f"Skipping older post: {archived_submission.id}")
             break  # Stop processing older posts
 
-        logging.info(f"Checking archived post: {archived_submission.id} - {archived_submission.title}")
+        logging.debug(f"Checking archived post: {archived_submission.id} - {archived_submission.title}")
 
         # Ensure all comments are loaded
         archived_submission.comments.replace_more(limit=0)
@@ -75,13 +75,14 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
 
                     if original_submission.removed_by_category or original_submission.selftext == "[deleted]" or (original_submission.link_flair_text and original_submission.link_flair_text in removal_flairs):
                         archived_submission.mod.flair(flair_template_id=removed_flair_id)
-                        logging.info(f"Updated flair for archived post: {archived_submission.id}")
+                        print(f"Updated flair for archived post: {archived_submission.id}")
                         break  # Stop checking once updated
                     else:
                         logging.debug(f"Original post still exists: {original_post_id}")
                 except NotFound:
                     archived_submission.mod.flair(flair_template_id=removed_flair_id)
                     logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
+                    print(f"Original post not found, marking archived post as removed: {archived_submission.id}")
                     break
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
@@ -90,7 +91,9 @@ for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limi
     
     except (RequestException, ResponseException, RedditAPIException) as ex:
         logging.error(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
+        print(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
     except Exception as e:
         logging.error(f"General error for archived post {archived_submission.id}: {str(e)}")
-
+        print(f"General error for archived post {archived_submission.id}: {str(e)}")
 logging.info("Script execution completed.")
+print("Script execution completed.")
