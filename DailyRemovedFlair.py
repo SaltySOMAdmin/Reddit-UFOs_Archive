@@ -51,7 +51,7 @@ removal_flairs = [
 removed_flair_id = "2aae3c82-e59b-11ef-82e4-264414cc8e5f"
 
 # Check posts in /r/UFOs_Archive
-for archived_submission in destination_subreddit.new(limit=1000):  # Adjust limit if needed
+for archived_submission in destination_subreddit.new(limit=200):  # Adjust limit if needed
     try:
         post_time = datetime.fromtimestamp(archived_submission.created_utc, timezone.utc)
         if post_time < cutoff_time:
