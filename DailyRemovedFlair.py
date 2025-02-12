@@ -75,14 +75,14 @@ for archived_submission in destination_subreddit.new(limit=200):  # Adjust limit
 
                     if original_submission.removed_by_category or original_submission.selftext == "[deleted]" or (original_submission.link_flair_text and original_submission.link_flair_text in removal_flairs):
                         archived_submission.mod.flair(flair_template_id=removed_flair_id)
-                        print(f"Updated flair for archived post: {archived_submission.id}")
+                        print(f"Updated flair for archived post: {archived_submission.title}")
                         break  # Stop checking once updated
                     else:
                         logging.debug(f"Original post still exists: {original_post_id}")
                 except NotFound:
                     archived_submission.mod.flair(flair_template_id=removed_flair_id)
                     logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
-                    print(f"Original post not found, marking archived post as removed: {archived_submission.id}")
+                    print(f"Original post not found, marking archived post as removed: {archived_submission.title}")
                     break
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
