@@ -71,7 +71,7 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Get current time and calculate cutoff
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(minutes=19)
+cutoff_time = current_time - timedelta(minutes=25)
 
 processed_posts = load_processed_posts()
 
