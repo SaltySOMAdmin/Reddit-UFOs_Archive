@@ -99,10 +99,14 @@ for submission in source_subreddit.new():
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
             elif 'v.redd.it' in submission.url and submission.media:
-                video_url = submission.media['reddit_video']['fallback_url']
-                file_name = 'video.mp4'
-                media_url = download_media(video_url, file_name)
-                original_media_url = video_url
+            reddit_video = submission.media.get('reddit_video', {})
+            # Use progressive download URL if available
+            if 'fallback_url' in reddit_video and not reddit_video.get('is_gif', False):
+                video_url = reddit_video['fallback_url']
+                if ".mp4" in video_url:
+                    file_name = 'progressive_video.mp4'
+                    media_url = download_media(video_url, file_name)
+                    original_media_url = video_url
 
         new_post = None
         source_flair_text = submission.link_flair_text  # Get the source post's flair text
