@@ -85,6 +85,7 @@ processed_posts = load_processed_posts()
 for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+        audio_url = None  # Add this line here
         
         if submission.id in processed_posts:
             continue  # Skip already processed posts
