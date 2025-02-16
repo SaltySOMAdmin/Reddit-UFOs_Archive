@@ -63,7 +63,13 @@ def split_text(text, max_length=10000):
         text = text[split_point:].lstrip()
     chunks.append(text)
     return chunks
-
+    
+def get_audio_url(video_url):
+    if "v.redd.it" in video_url:
+        base_url = video_url.rsplit('/', 1)[0]
+        return f"{base_url}/DASH_audio.mp4"
+    return None
+    
 # Source subreddit
 source_subreddit = source_reddit.subreddit('ufos')
 # Destination subreddit
@@ -106,6 +112,7 @@ for submission in source_subreddit.new():
                     if ".mp4" in video_url:
                         file_name = 'progressive_video.mp4'
                         media_url = download_media(video_url, file_name)
+                        audio_url = get_audio_url(submission.url)
                         original_media_url = video_url
 
         new_post = None
@@ -141,6 +148,8 @@ for submission in source_subreddit.new():
             comment_body = f"Original post by u/{submission.author}: [Here]({submission.permalink})"
             if original_media_url:
                 comment_body += f"\n\nDirect link to media: [Media Here]({original_media_url})"
+            if audio_url:
+                comment_body += f"\n\nDirect link to Audio: [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
                 
