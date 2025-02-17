@@ -1,9 +1,10 @@
 # Subreddit-to-Subreddit Archive
  
-## This is a reddit bot designed to backup posts from one subreddit to another on a set schedule. 
+### This is a reddit bot designed to backup posts from one subreddit to another on a set schedule. 
 - Post-ids are logged to verify posts aren't duplicated.
 - Post flairs are copied to match the original post.
 - Comments are left in the body of the duplicated post tagging the original post, the original author, and direct links to media if applicable. 
+- A separate script is included to modify the flair of posts that are removed from the original subreddit. 
 
 # Setup
 
