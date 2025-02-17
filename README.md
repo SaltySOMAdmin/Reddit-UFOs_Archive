@@ -36,13 +36,16 @@ You'll also need to set your timedelta. I run my script every 14 minutes but the
 This is where you will set your schedule to run. My script runs every 14 minutes (Example: 10:00, 10:14, 10:28, 10:42, 10:56) and it logs actions to cron_log.txt Errors are logged within the script to error_log.txt as they happen. To open your cron settings type this into your terminal: crontab -e
 
 - Main Script
+
 	*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
 
 - Update flair script
+
 	2 */8 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/DailyRemovedFlair.py >> /home/ubuntu/Reddit-UFOs_Archive/removed_posts_log.txt 2>&1
 
 
 - Upload logs to Discord Webhook then wipe the log
+
 	*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_error_log.sh
 	*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_cron_log.sh
 	10 */8 * * * /home/ubuntu/Reddit-UFOs_Archive/forward_removed_posts_log.sh
