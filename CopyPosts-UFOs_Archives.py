@@ -63,7 +63,13 @@ def split_text(text, max_length=10000):
         text = text[split_point:].lstrip()
     chunks.append(text)
     return chunks
-
+    
+def get_audio_url(video_url):
+    if "v.redd.it" in video_url:
+        base_url = video_url.rsplit('/', 1)[0]
+        return f"{base_url}/DASH_audio.mp4"
+    return None
+    
 # Source subreddit
 source_subreddit = source_reddit.subreddit('ufos')
 # Destination subreddit
@@ -71,7 +77,7 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Get current time and calculate cutoff
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(minutes=19)
+cutoff_time = current_time - timedelta(minutes=28)
 
 processed_posts = load_processed_posts()
 
@@ -79,6 +85,7 @@ processed_posts = load_processed_posts()
 for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+        audio_url = None  # Add this line here
         
         if submission.id in processed_posts:
             continue  # Skip already processed posts
@@ -99,10 +106,15 @@ for submission in source_subreddit.new():
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
             elif 'v.redd.it' in submission.url and submission.media:
-                video_url = submission.media['reddit_video']['fallback_url']
-                file_name = 'video.mp4'
-                media_url = download_media(video_url, file_name)
-                original_media_url = video_url
+                reddit_video = submission.media.get('reddit_video', {})
+                # Use progressive download URL if available
+                if 'fallback_url' in reddit_video and not reddit_video.get('is_gif', False):
+                    video_url = reddit_video['fallback_url']
+                    if ".mp4" in video_url:
+                        file_name = 'progressive_video.mp4'
+                        media_url = download_media(video_url, file_name)
+                        audio_url = get_audio_url(submission.url)
+                        original_media_url = video_url
 
         new_post = None
         source_flair_text = submission.link_flair_text  # Get the source post's flair text
@@ -137,6 +149,8 @@ for submission in source_subreddit.new():
             comment_body = f"Original post by u/{submission.author}: [Here]({submission.permalink})"
             if original_media_url:
                 comment_body += f"\n\nDirect link to media: [Media Here]({original_media_url})"
+            if audio_url:
+                comment_body += f"\n\nDirect link to Audio: [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
                 
