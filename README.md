@@ -21,8 +21,22 @@ A bot account needs to be created and Reddit API credentials need to be entered 
 
 A Discord webhook needs to be created and entered into forward_cron_log.sh and into forward_error_log.sh - you can setup two channels or use the same webhook for both. 
 
+### Setup Git
+1. [Create a Github account.](https://github.com/join)
+
+2. [Go here and install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) if you don’t have it already.
+
+3. [Assuming you're reading this on the repo page](https://github.com/SaltySOMAdmin/Reddit-UFOs_Archive), select ‘fork’ to create a copy of it to your Github account. 
+
+4. From your new repo, select **Code** and then under **Clone** copy the HTTPS URL (e.g. https://github.com/SaltySOMAdmin/Reddit-UFOs_Archive.git) to download a local copy
+
+5. Navigate to a folder you want a local copy of the repo to live, and clone the Github repo to your local PC:
+   1. It's up to you where to put the repo - recommended in a folder like /home/YourUserAcct/Github/ or /home/YourUserAcct/. Once you clone the directory it will create a subfolder with the name of your fork.
+   2. `git clone <url>`
+      1. e.g. `git clone https://github.com/SaltySOMAdmin/Reddit-UFOs_Archive.git`
+
 ### Configure the script.
-There are several sections you can customize in the script. You'll need to enter your source and destination subs.
+There are several sections you can customize in the script (CopyPosts-UFOs_Archives.py). You'll need to enter your source and destination subs.
 
 	source_subreddit = source_reddit.subreddit('ufos')
 
@@ -31,6 +45,14 @@ There are several sections you can customize in the script. You'll need to enter
 You'll also need to set your timedelta. I run my script every 14 minutes but the script checks posts that are created within the past 28 minutes. This gives two opportunities for posts to be duplicated. 
 
 	cutoff_time = current_time - timedelta(minutes=28)
+	
+Edit the path for the two log files to the path you cloned this repository to. 
+	
+	logging.basicConfig(filename='/home/YourUserAcct/Github/YourFork/error_log.txt', level=logging.ERROR, 
+
+and
+
+	PROCESSED_FILE = "/home/YourUserAcct/Github/YourFork/processed_posts.txt"
 
 ### Crontab Settings
 This is where you will set your schedule to run. My script runs every 14 minutes (Example: 10:00, 10:14, 10:28, 10:42, 10:56) and it logs actions to cron_log.txt Errors are logged within the script to error_log.txt as they happen. To open your cron settings type this into your terminal: crontab -e
@@ -50,3 +72,6 @@ This is where you will set your schedule to run. My script runs every 14 minutes
 	*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_cron_log.sh
 	10 */8 * * * /home/ubuntu/Reddit-UFOs_Archive/forward_removed_posts_log.sh
 
+### Setup Continuous Deployment with Github Actions
+Allows you to deploy your code via Github vs logging into the VPS and updating the code/uploading a new file. I followed a guide similar to this one:
+https://docs.github.com/en/actions/use-cases-and-examples/deploying/deploying-with-github-actions
