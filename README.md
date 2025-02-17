@@ -11,7 +11,7 @@
 ### Setup a Linux Host
 I'm using Ubuntu LTS on an Oracle Cloud VM. There are free-tiers available as of today. Google Compute and Amazon AWS are similar products. You can also roll your own host with an old PC or a Raspberry Pi. You'll need to know a bit of Linux CLI or you'll need to be ready to learn!  
 
-### Install necessary software prereqs: 
+### Install necessary software prerequisites: 
 	sudo apt install python3
 	sudo apt install python3-praw
 	sudo apt install python3-prawcore
@@ -77,7 +77,7 @@ This is where you will set your schedule to run. My script runs every 14 minutes
 
 		*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
 
-- Update flair for removed posts script, if incorportated.
+- Update flair for removed posts script, if incorporated.
 
 		2 */8 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/DailyRemovedFlair.py >> /home/ubuntu/Reddit-UFOs_Archive/removed_posts_log.txt 2>&1
 
