@@ -68,24 +68,27 @@ and
 	destination_password=""
 	destination_username=""
 
+DailyRemovedFlair.py will need quite a bit more customization and may not be necessary for your needs. If it's a feature you need you'll need to edit the script to include a list of 'removal flairs' if the home subreddit supports them. You'll also need to update the script with your subreddit name and the path to your log file. This can be implemented at a later point as well as the main script does not hinge on it. 
+
 ### Crontab Settings
 This is where you will set your schedule to run. My script runs every 14 minutes (Example: 10:00, 10:14, 10:28, 10:42, 10:56) and it logs actions to cron_log.txt Errors are logged within the script to error_log.txt as they happen. To open your cron settings type this into your terminal: crontab -e
 
-- Main Script
+- Run main script
 
-	*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
+		*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
 
-- Update flair script
+- Update flair for removed posts script, if incorportated.
 
-	2 */8 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/DailyRemovedFlair.py >> /home/ubuntu/Reddit-UFOs_Archive/removed_posts_log.txt 2>&1
+		2 */8 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/DailyRemovedFlair.py >> /home/ubuntu/Reddit-UFOs_Archive/removed_posts_log.txt 2>&1
 
 
 - Upload logs to Discord Webhook then wipe the log
 
-	*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_error_log.sh
-	*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_cron_log.sh
-	10 */8 * * * /home/ubuntu/Reddit-UFOs_Archive/forward_removed_posts_log.sh
+		*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_error_log.sh
+		*/15 * * * * /home/ubuntu/Reddit-UFOs_Archive/forward_cron_log.sh
+		10 */8 * * * /home/ubuntu/Reddit-UFOs_Archive/forward_removed_posts_log.sh
 
 ### Setup Continuous Deployment with Github Actions
-Allows you to deploy your code via Github vs logging into the VPS and updating the code/uploading a new file. I followed a guide similar to this one:
+
+Allows you to deploy your code via Github vs logging into the VPS and updating the code/uploading a new file. Allows for easier collaboration as well. I followed a guide similar to this one:
 https://docs.github.com/en/actions/use-cases-and-examples/deploying/deploying-with-github-actions
