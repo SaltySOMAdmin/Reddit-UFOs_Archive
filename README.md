@@ -17,9 +17,9 @@ I'm using Ubuntu LTS on an Oracle Cloud VM. There are free-tiers available as of
 	sudo apt install python3-prawcore
 
 ### Create a dedicated Reddit account for your bot.
-A bot account needs to be created and Reddit API credentials need to be entered into config.py. You can use different accounts for the source and destination subreddits or you can use one account for both. Make note of your username, password. Open this page to 'create an app' https://ssl.reddit.com/prefs/apps/ make a note of the generated client ID and client Secret.
+A bot account needs to be created and Reddit API credentials need to be entered into config.py. You can use different accounts for the source and destination subreddits or you can use one account for both. Make note of your username and password. Open this page to 'create an app' https://ssl.reddit.com/prefs/apps/ make a note of the generated Client ID and Client Secret.
 
-A Discord webhook needs to be created and entered into forward_cron_log.sh and into forward_error_log.sh - you can setup two channels or use the same webhook for both. Right clicking the channel in Discord --> Edit Channel --> Integrations --> Create Webhook. Make a note of your Webhook URL.
+If you'd like your logs forwarded to a Discord channel, a Discord webhook needs to be created and entered into forward_cron_log.sh and into forward_error_log.sh - you can setup two channels or use the same webhook for both. Right clicking the channel in Discord --> Edit Channel --> Integrations --> Create Webhook. Make a note of your Webhook URL.
 
 ### Setup Git
 1. [Create a Github account.](https://github.com/join)
