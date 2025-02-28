@@ -23,11 +23,11 @@ reddit = praw.Reddit(
 # Destination subreddit
 destination_subreddit = reddit.subreddit('UFOs_Archive')
 
-# Get current time and calculate cutoff for the last 8 hours
+# Get current time and calculate cutoff for the last 16 hours
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(hours=12)
+cutoff_time = current_time - timedelta(hours=16)
 
-print("Starting script: Checking posts from the last 12 hours.")
+print("Starting script: Checking posts from the last 16 hours.")
 
 # List of removal flairs in /r/ufos
 removal_flairs = [
