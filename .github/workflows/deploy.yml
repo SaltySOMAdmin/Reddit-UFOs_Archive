@@ -20,6 +20,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            echo "Using Duo Bypass Code: ${{ secrets.DUO_BYPASS_CODE }}"
+            DUO_PASSCODE=${{ secrets.DUO_BYPASS_CODE }}"
             cd /home/ubuntu/Reddit-UFOs_Archive/
             git pull origin main
