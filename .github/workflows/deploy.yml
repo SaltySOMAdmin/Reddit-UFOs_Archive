@@ -20,7 +20,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: "${{ secrets.DUO_BYPASS_CODE }}
           script: |
-            echo "${{ secrets.DUO_BYPASS_CODE }}
             cd /home/ubuntu/Reddit-UFOs_Archive/
             git pull origin main
