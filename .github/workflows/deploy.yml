@@ -1,22 +1,21 @@
-name: Deploy to Ubuntu Server
+name: Command via SSH
 
-on:
-  push:
-    branches:
-      - main  # Change to your branch
+on: push
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
+      - name: Deploy to Ubuntu Server
         uses: garygrossgarten/github-action-ssh@release
         with:
+          command: |
+            cd /home/ubuntu/Reddit-UFOs_Archive/
+            git pull origin main
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER_GITHUB }}
           password: ${{ secrets.SERVER_PASSWORD }}
           privateKey: ${{ secrets.SERVER_SSH_KEY_GITHUB }}
-          command: |
-            cd /home/ubuntu/Reddit-UFOs_Archive/
-            git pull origin main
+        env:
+          CI: true
