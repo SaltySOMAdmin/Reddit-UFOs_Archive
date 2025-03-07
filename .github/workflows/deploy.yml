@@ -18,5 +18,6 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           privateKey: ${{ secrets.SERVER_SSH_KEY_GITHUB }}
           tryKeyboard: true
+          port: 22
         env:
           CI: true
