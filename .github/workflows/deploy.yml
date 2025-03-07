@@ -17,5 +17,6 @@ jobs:
           username: ${{ secrets.SERVER_USER_GITHUB }}
           password: ${{ secrets.SERVER_PASSWORD }}
           privateKey: ${{ secrets.SERVER_SSH_KEY_GITHUB }}
+          tryKeyboard: true
         env:
           CI: true
