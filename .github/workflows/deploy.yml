@@ -19,6 +19,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER_GITHUB }}
           key: ${{ secrets.SERVER_SSH_KEY_GITHUB }}
+          password: ${{ secrets.SERVER_PASSWORD }}
           script: |
             cd /home/ubuntu/Reddit-UFOs_Archive/
             git pull origin main
