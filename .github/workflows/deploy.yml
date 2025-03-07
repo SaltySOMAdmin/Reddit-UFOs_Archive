@@ -14,9 +14,9 @@ jobs:
             cd /home/ubuntu/Reddit-UFOs_Archive/
             git pull origin main
           host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER_GITHUB }}
+          username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
-          privateKey: ${{ secrets.SERVER_SSH_KEY_GITHUB }}
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
           tryKeyboard: true
           port: 22
         env:
