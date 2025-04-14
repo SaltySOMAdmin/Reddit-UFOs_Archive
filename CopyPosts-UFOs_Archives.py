@@ -9,7 +9,7 @@ from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR,
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -63,13 +63,13 @@ def split_text(text, max_length=10000):
         text = text[split_point:].lstrip()
     chunks.append(text)
     return chunks
-    
+
 def get_audio_url(video_url):
     if "v.redd.it" in video_url:
         base_url = video_url.rsplit('/', 1)[0]
         return f"{base_url}/DASH_audio.mp4"
     return None
-    
+
 # Source subreddit
 source_subreddit = source_reddit.subreddit('ufos')
 # Destination subreddit
@@ -85,8 +85,8 @@ processed_posts = load_processed_posts()
 for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
-        audio_url = None  # Add this line here
-        
+        audio_url = None  # Initialize audio_url here
+
         if submission.id in processed_posts:
             continue  # Skip already processed posts
 
@@ -98,10 +98,23 @@ for submission in source_subreddit.new():
         is_self_post = submission.is_self
         media_url = None
         original_media_url = None
+        gallery_urls = []
 
         # Handle media posts (images or videos)
         if not is_self_post:
-            if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+            if hasattr(submission, 'is_gallery') and submission.is_gallery:
+                gallery_data = submission.media_metadata
+                for item_id, media_item in gallery_data.items():
+                    if media_item['m'].startswith('image'):
+                        image_url = media_item['s']['u'].replace('preview', 'i')
+                        file_name = image_url.split('/')[-1]
+                        downloaded_path = download_media(image_url, file_name)
+                        if downloaded_path:
+                            gallery_urls.append(downloaded_path)
+                            if not original_media_url:
+                                original_media_url = f"https://www.reddit.com/gallery/{submission.id}" # Set a link to the gallery
+
+            elif submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
@@ -114,7 +127,7 @@ for submission in source_subreddit.new():
                         file_name = 'progressive_video.mp4'
                         media_url = download_media(video_url, file_name)
                         audio_url = get_audio_url(submission.url)
-                        original_media_url = video_url
+                        original_media_url = submission.url
 
         new_post = None
         source_flair_text = submission.link_flair_text  # Get the source post's flair text
@@ -122,6 +135,15 @@ for submission in source_subreddit.new():
         # Repost to the destination subreddit
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
+        elif gallery_urls:
+            if gallery_urls:
+                try:
+                    new_post = destination_subreddit.submit_gallery(title, image_paths=gallery_urls)
+                except RedditAPIException as e:
+                    logging.error(f"Error submitting gallery for post {submission.id}: {str(e)}")
+                    # Fallback to linking if gallery submission fails
+                    new_post = destination_subreddit.submit(title, url=f"https://www.reddit.com/gallery/{submission.id}")
+                    original_media_url = f"https://www.reddit.com/gallery/{submission.id}"
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
             if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 new_post = destination_subreddit.submit_image(title, image_path=media_url)
@@ -153,10 +175,10 @@ for submission in source_subreddit.new():
                 comment_body += f"\n\nDirect link to Audio: [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
-                
+
             # Add the explicit original post ID
-            comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
-            
+            comment_body += f"\n\n**Original Post ID:** {submission.id}"
+
             # Check if the comment body is too long
             if len(comment_body) > 10000:
                 chunks = split_text(comment_body)
@@ -171,7 +193,7 @@ for submission in source_subreddit.new():
 
         print(f"Copied post: {submission.title}")
         time.sleep(10)
-    
+
     except (RequestException, ResponseException, RedditAPIException) as ex:
         logging.error(f"Error for post {submission.id}: {str(ex)}")
     except Exception as e:
@@ -180,3 +202,7 @@ for submission in source_subreddit.new():
     # Clean up downloaded media files
     if media_url and os.path.exists(media_url):
         os.remove(media_url)
+    if gallery_urls:
+        for url in gallery_urls:
+            if os.path.exists(url):
+                os.remove(url)
