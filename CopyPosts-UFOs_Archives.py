@@ -42,10 +42,16 @@ def save_processed_post(post_id):
     with open(PROCESSED_FILE, "a") as file:
         file.write(post_id + "\n")
 
-def download_media(url, file_name, headers=None):
-    if headers is None:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get(url, headers=headers, stream=True)
+def download_media(url, file_name):
+    # Replace preview.redd.it with i.redd.it if present
+    if "preview.redd.it" in url:
+        url = url.replace("preview.redd.it", "i.redd.it")
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36'
+    }
+
+    response = requests.get(url, stream=True, headers=headers)
     if response.status_code == 200:
         with open(file_name, 'wb') as out_file:
             for chunk in response.iter_content(chunk_size=1024):
@@ -54,6 +60,7 @@ def download_media(url, file_name, headers=None):
     else:
         logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
         return None
+
 
 def split_text(text, max_length=10000):
     chunks = []
