@@ -12,6 +12,14 @@ import config  # Import the config file with credentials
 logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
+# Subreddits
+source_subreddit = source_reddit.subreddit('ufos')
+destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
+
+# Time filtering
+current_time = datetime.now(timezone.utc)
+cutoff_time = current_time - timedelta(minutes=28)
+
 # Reddit API credentials
 source_reddit = praw.Reddit(
     client_id=config.destination_client_id,
@@ -76,15 +84,6 @@ def get_audio_url(video_url):
         base_url = video_url.rsplit('/', 1)[0]
         return f"{base_url}/DASH_audio.mp4"
     return None
-
-# Subreddits
-source_subreddit = source_reddit.subreddit('ufos')
-destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
-
-# Time filtering
-current_time = datetime.now(timezone.utc)
-#cutoff_time = current_time - timedelta(minutes=28)
-cutoff_time = current_time - timedelta(hours=15)
 
 processed_posts = load_processed_posts()
 
