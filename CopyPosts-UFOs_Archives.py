@@ -127,13 +127,13 @@ for submission in source_subreddit.new():
                 original_media_url = submission.url
             elif 'v.redd.it' in submission.url and submission.media:
                 reddit_video = submission.media.get('reddit_video', {})
-                if 'fallback_url' in reddit_video and not reddit_video.get('is_gif', False):
+                if 'fallback_url' in reddit_video:
                     video_url = reddit_video['fallback_url']
-                    if ".mp4" in video_url:
+                    if video_url.endswith('.mp4'):
                         file_name = 'progressive_video.mp4'
                         media_url = download_media(video_url, file_name)
-                        audio_url = get_audio_url(submission.url)
                         original_media_url = video_url
+                        audio_url = get_audio_url(submission.url)  # still check for DASH_audio.mp4
 
         new_post = None
         source_flair_text = submission.link_flair_text
