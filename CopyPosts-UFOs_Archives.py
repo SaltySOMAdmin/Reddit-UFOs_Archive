@@ -43,12 +43,11 @@ def save_processed_post(post_id):
         file.write(post_id + "\n")
 
 def download_media(url, file_name):
-    # Replace preview.redd.it with i.redd.it if present
     if "preview.redd.it" in url:
         url = url.replace("preview.redd.it", "i.redd.it")
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0'
     }
 
     response = requests.get(url, stream=True, headers=headers)
@@ -61,7 +60,6 @@ def download_media(url, file_name):
         logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
         return None
 
-
 def split_text(text, max_length=10000):
     chunks = []
     while len(text) > max_length:
@@ -72,7 +70,6 @@ def split_text(text, max_length=10000):
         text = text[split_point:].lstrip()
     chunks.append(text)
     return chunks
-
 
 def get_audio_url(video_url):
     if "v.redd.it" in video_url:
@@ -86,8 +83,7 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Time filtering
 current_time = datetime.now(timezone.utc)
-#cutoff_time = current_time - timedelta(minutes=28)
-cutoff_time = current_time - timedelta(hours=11)
+cutoff_time = current_time - timedelta(minutes=28)
 
 processed_posts = load_processed_posts()
 
@@ -128,13 +124,18 @@ for submission in source_subreddit.new():
                 original_media_url = submission.url
             elif 'v.redd.it' in submission.url and submission.media:
                 reddit_video = submission.media.get('reddit_video', {})
-                if 'fallback_url' in reddit_video:
-                    video_url = reddit_video['fallback_url']
-                    if video_url.endswith('.mp4'):
-                        file_name = 'progressive_video.mp4'
-                        media_url = download_media(video_url, file_name)
-                        original_media_url = video_url
-                        audio_url = get_audio_url(submission.url)  # still check for DASH_audio.mp4
+                video_url = reddit_video.get('fallback_url')
+                has_audio = reddit_video.get('has_audio', False)
+                is_gif = reddit_video.get('is_gif', False)
+
+                if video_url:
+                    file_name = 'media_video.mp4'
+                    media_url = download_media(video_url, file_name)
+                    original_media_url = video_url
+
+                    # Include audio only if present (for non-gif videos)
+                    if has_audio and not is_gif:
+                        audio_url = get_audio_url(submission.url)
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -158,7 +159,6 @@ for submission in source_subreddit.new():
                 if flair['text'] == source_flair_text:
                     matching_flair = flair['id']
                     break
-
             if matching_flair:
                 new_post.flair.select(matching_flair)
                 logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
@@ -176,8 +176,7 @@ for submission in source_subreddit.new():
             comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
 
             if len(comment_body) > 10000:
-                chunks = split_text(comment_body)
-                for chunk in chunks:
+                for chunk in split_text(comment_body):
                     new_post.reply(chunk)
                     time.sleep(5)
             else:
