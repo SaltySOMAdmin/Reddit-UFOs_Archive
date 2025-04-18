@@ -29,8 +29,5 @@ media_info = {
     "gallery_data": getattr(submission, "gallery_data", None),
 }
 
-# Save to a file
-with open("media_debug_output.txt", "w", encoding="utf-8") as f:
-    f.write(json.dumps(media_info, indent=4, default=str))
-
-print("Media debug info saved to media_debug_output.txt")
+# Pretty-print to terminal
+print(json.dumps(media_info, indent=4, default=str))
