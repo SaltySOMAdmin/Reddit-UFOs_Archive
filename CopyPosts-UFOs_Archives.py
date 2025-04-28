@@ -174,7 +174,11 @@ for submission in source_subreddit.new():
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
                 comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
-                comment_body += f"\n\n**Original Post Flair ID:** `{submission.link_flair_template_id}`"
+                # Add flair ID if available
+            if submission.link_flair_template_id:
+                comment_body += f"**Original Flair ID:** `{submission.link_flair_template_id}`\n"
+            if submission.link_flair_text:
+                comment_body += f"**Original Flair Text:** `{submission.link_flair_text}`"
 
             if len(comment_body) > 10000:
                 for chunk in split_text(comment_body):
