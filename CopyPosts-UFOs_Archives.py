@@ -173,6 +173,7 @@ for submission in source_subreddit.new():
                 comment_body += f"\n\nDirect link to Audio: [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
+                comment_body += "\n\n---\n\n"
                 comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
                 # Add flair ID if available
             if submission.link_flair_template_id:
