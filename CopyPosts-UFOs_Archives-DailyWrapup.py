@@ -83,7 +83,7 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Time filtering
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(minutes=2880)
+cutoff_time = current_time - timedelta(hours=24)
 
 processed_posts = load_processed_posts()
 
