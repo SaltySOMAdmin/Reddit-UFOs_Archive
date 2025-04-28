@@ -188,11 +188,11 @@ for submission in source_subreddit.new():
             comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
-                comment_body += f"\n\nDirect link to media: [Media Here]({original_media_url})"
+                comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
             if audio_url:
-                comment_body += f"\n\nDirect link to Audio: [Audio Here]({audio_url})"
+                comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
             if submission.selftext:
-                comment_body += f"\n\nOriginal post text: {submission.selftext}"
+                comment_body += f"\n\n**Original post text:** {submission.selftext}"
                 comment_body += "\n\n---\n\n"                
                 # Add flair ID if available
             if submission.link_flair_template_id:
