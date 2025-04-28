@@ -3,6 +3,8 @@ import requests
 import os
 import time
 import logging
+import sys
+import re
 from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
@@ -81,9 +83,26 @@ def get_audio_url(video_url):
 source_subreddit = source_reddit.subreddit('ufos')
 destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
+# Parse time delta from command-line argument
+def parse_time_delta(arg):
+    if not arg:
+        return timedelta(minutes=28)  # Default to 28 minutes if no argument
+    match = re.match(r'^(\d+)([mh])$', arg)
+    if not match:
+        logging.error(f"Invalid time delta format: {arg}. Using default 28 minutes.")
+        return timedelta(minutes=28)
+    value, unit = int(match.group(1)), match.group(2)
+    if unit == 'm':
+        return timedelta(minutes=value)
+    elif unit == 'h':
+        return timedelta(hours=value)
+
+# Get time delta from command-line argument
+time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
+
 # Time filtering
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(minutes=28)
+cutoff_time = current_time - time_delta
 
 processed_posts = load_processed_posts()
 
@@ -111,7 +130,7 @@ for submission in source_subreddit.new():
                 media_id = item['media_id']
                 meta = submission.media_metadata.get(media_id, {})
                 if 's' in meta and 'u' in meta['s']:
-                    img_url = meta['s']['u'].split('?')[0].replace("&amp;", "&")
+                    img_url = meta['s']['u'].split('?')[0].replace("&", "&")
                     ext = os.path.splitext(img_url)[-1]
                     file_name = f"{media_id}{ext}"
                     downloaded = download_media(img_url, file_name)
@@ -174,12 +193,12 @@ for submission in source_subreddit.new():
             if submission.selftext:
                 comment_body += f"\n\nOriginal post text: {submission.selftext}"
                 comment_body += "\n\n---\n\n"
-                comment_body += f"\n\n**Original Post ID:** `{submission.id}`"
+                comment_body += f"\n\n**Original Post ID:** {submission.id}"
                 # Add flair ID if available
             if submission.link_flair_template_id:
-                comment_body += f"**Original Flair ID:** `{submission.link_flair_template_id}`\n"
+                comment_body += f"**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
-                comment_body += f"**Original Flair Text:** `{submission.link_flair_text}`"
+                comment_body += f"**Original Flair Text:** {submission.link_flair_text}"
 
             if len(comment_body) > 10000:
                 for chunk in split_text(comment_body):
