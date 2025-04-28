@@ -41,11 +41,7 @@ There are several sections you need to customize in the main script (CopyPosts-U
 	source_subreddit = source_reddit.subreddit('ufos')
 
 	destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
-	
-You'll also need to set your timedelta. I run my script every 14 minutes but the script checks posts that are created within the past 28 minutes. This gives two opportunities for posts to be duplicated. 
-
-	cutoff_time = current_time - timedelta(minutes=28)
-	
+		
 Edit the path for the two log files to the path you cloned this repository to. 
 	
 	logging.basicConfig(filename='/home/YourUserAcct/Github/YourFork/error_log.txt', level=logging.ERROR, 
@@ -54,7 +50,7 @@ and
 
 	PROCESSED_FILE = "/home/YourUserAcct/Github/YourFork/processed_posts.txt"
 	
-Enter your credentials into config.py. You can use different accounts for the source and destination subreddits or you can use one account for both. I'm using the credentials I have saved in destination_ for both. Specify in the main script under the section with "# Reddit API credentials"
+Enter your credentials into config.py. You can use different accounts for the source and destination subreddits or you can use one account for both. I'm using my Mod account to pull specific info from the original posts then the bot account to post to the archive. Specify in the main script under the section with "# Reddit API credentials"
 	
 	source_client_id=""
 	source_client_secret=""
@@ -71,11 +67,11 @@ and
 DailyRemovedFlair.py will need quite a bit more customization and may not be necessary for your needs. If it's a feature you need you'll need to edit the script to include a list of 'removal flairs' if the home subreddit supports them. You'll also need to update the script with your subreddit name and the path to your log file. This can be implemented at a later point as well as the main script does not hinge on it. 
 
 ### Crontab Settings
-This is where you will set your schedule to run. My script runs every 14 minutes (Example: 10:00, 10:14, 10:28, 10:42, 10:56) and it logs actions to cron_log.txt Errors are logged within the script to error_log.txt as they happen. To open your cron settings type this into your terminal: crontab -e
+This is where you will set your schedule to run. You need to pass the timedelta credential with your call to the script. My script runs every 14 minutes (Example: 10:00, 10:14, 10:28, 10:42, 10:56) and it checks posts from the past 28 minutes. This gives the script two tries to copy posts. The script logs actions to cron_log.txt; Errors are logged within the script to error_log.txt as they happen. To open your cron settings type this into your terminal: crontab -e
 
 - Run main script
 
-		*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
+		*/14 * * * /usr/bin/python3 /home/ubuntu/Reddit-UFOs_Archive/CopyPosts-UFOs_Archives.py 28m >> /home/ubuntu/Reddit-UFOs_Archive/cron_log.txt 2>&1
 
 - Update flair for removed posts script, if incorporated.
 
