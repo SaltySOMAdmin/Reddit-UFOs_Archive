@@ -17,7 +17,7 @@ source_reddit = praw.Reddit(
     client_id=config.destination_client_id,
     client_secret=config.destination_client_secret,
     password=config.destination_password,
-    username=config.sdestination_username,
+    username=config.destination_username,
     user_agent=config.destination_user_agent
 )
 
