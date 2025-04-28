@@ -69,28 +69,19 @@ for archived_submission in destination_subreddit.new(limit=200):
                 logging.debug(f"Extracted original post ID: {original_post_id}")
 
                 try:
-                    # Here's the key: FETCH LIGHTWEIGHT
                     original_submission = reddit.submission(id=original_post_id)
-                    
-                    # No need to sleep if you don't fully load the post content
+                    original_submission._fetch()  # <--- ADD THIS LINE
 
-                    flair_id = original_submission.link_flair_template_id
-                    is_removed = original_submission.removed_by_category
-                    is_deleted = (original_submission.selftext == "[deleted]")
-
-                    if is_removed or is_deleted or (flair_id and flair_id in removal_flair_ids):
+                    if original_submission.removed_by_category or original_submission.selftext == "[deleted]" or (original_submission.link_flair_template_id and original_submission.link_flair_template_id in removal_flair_ids):
                         archived_submission.mod.flair(flair_template_id=removed_flair_id)
                         print(f"Updated flair for archived post: {archived_submission.title}")
-                        break  # Once updated, move to next post
+                        break
                     else:
-                        logging.debug(f"Original post still exists and is clean: {original_post_id}")
-
+                        logging.debug(f"Original post still exists: {original_post_id}")
                 except NotFound:
-                    # Original post 404'd → treat as removed
                     archived_submission.mod.flair(flair_template_id=removed_flair_id)
-                    print(f"Original post not found, marking archived post as removed: {archived_submission.title}")
                     logging.info(f"Original post not found, marking archived post as removed: {archived_submission.id}")
-                    break
+                    print(f"Original post not found, marking archived post as removed: {archived_submission.title}")
 
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
