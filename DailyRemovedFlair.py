@@ -99,7 +99,7 @@ for archived_submission in destination_subreddit.new(limit=200):
             continue
 
         try:
-            original Submission = fetch_submission(original_post_id)
+            original_submission = fetch_submission(original_post_id)
             wait_if_needed()
 
             # Check if post is removed, deleted, or has a removal flair
