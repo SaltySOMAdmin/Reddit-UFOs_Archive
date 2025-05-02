@@ -11,7 +11,7 @@ import tenacity
 # Set up logging
 logging.basicConfig(
     filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt',
-    level=logging.DEBUG,
+    level=logging.ERROR,
     format='%(asctime)s %(levelname)s: %(message)s'
 )
 
