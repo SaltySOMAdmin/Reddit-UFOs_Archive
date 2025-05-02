@@ -11,7 +11,7 @@ import tenacity
 # Set up logging
 logging.basicConfig(
     filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt',
-    level=logging.ERROR,
+    level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s'
 )
 
@@ -39,9 +39,9 @@ destination_subreddit = destination_reddit.subreddit('UFOs_Archive')
 
 # Get current time and calculate cutoff for the last 16 hours
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(hours=52)
+cutoff_time = current_time - timedelta(hours=16)
 
-# List of removal flair texts in /r/ufos
+# List of removal flair texts in /r/ufos (for redundancy)
 removal_flairs = [
     "Rule 1: Follow the Standards of Civility",
     "Rule 2: Posts must be on-topic",
@@ -60,23 +60,23 @@ removal_flairs = [
     "Rule 13: Low effort comments regarding public figures"
 ]
 
-# Optional: List of removal flair IDs in /r/ufos (populate as a mod)
+# List of removal flair IDs in /r/ufos
 removal_flair_ids = [
-     "7b14f2ce-cfbf-11eb-89f4-0e476f3d9d3d",  # "Rule 1: Follow the Standards of Civility"
-     "80d51022-cfbf-11eb-abbc-0ef931b77cdb",  # "Rule 2: Posts must be on-topic"
-     "85ced3d8-cfbf-11eb-9eab-0e63e592d261",  # "Rule 3: Be substantive"
-     "8b9f15e8-cfbf-11eb-abeb-0ef152a43b0f",  # "Rule 4: No duplicate posts"
-     "909be63e-cfbf-11eb-bbac-0ede7dbb605d",  # "Rule 5: No commercial activity"
-     "95d860aa-cfbf-11eb-a918-0e7f2c8d7c01",  # "Rule 6: Bad title"
-     "cf3b5fa8-df66-11eb-bce8-0e4db6ae439b",  # "Rule 7: Posting limits"
-     "fd60122a-df66-11eb-93ed-0e956b4f6669",  # "Rule 8: No memes"
-     "643158c8-b0c3-11ec-8fad-0a0cedfa08f2",  # "Rule 9: Link posts must include a submission statement"
-     "597ab2f2-200e-11ed-81e1-ca42d471553b",  # "Rule 11: Common Questions"
-     "9af1649c-cfbf-11eb-b874-0ea1a57cb45d",  # "Posting Guidelines for Sightings"
-     "434058ea-df67-11eb-af98-0eaea14e6779",  # "Better suited for the current megathread"
-     "13d3b30c-94ad-11ed-b87c-bad73d311b50",  # "Rule 12: Meta-posts must be posted in r/ufosmeta"
-     "ce8f9fd6-ff69-11ed-862a-4adf08bd01f6",  # "Rule 13: Low effort comments regarding public figures"
-     "dd02bab2-ff69-11ed-9d19-2648400e7657"  # "Rule 14: Off-topic political discussion"
+    "7b14f2ce-cfbf-11eb-89f4-0e476f3d9d3d",  # Rule 1: Follow the Standards of Civility
+    "80d51022-cfbf-11eb-abbc-0ef931b77cdb",  # Rule 2: Posts must be on-topic
+    "85ced3d8-cfbf-11eb-9eab-0e63e592d261",  # Rule 3: Be substantive
+    "8b9f15e8-cfbf-11eb-abeb-0ef152a43b0f",  # Rule 4: No duplicate posts
+    "909be63e-cfbf-11eb-bbac-0ede7dbb605d",  # Rule 5: No commercial activity
+    "95d860aa-cfbf-11eb-a918-0e7f2c8d7c01",  # Rule 6: Bad title
+    "cf3b5fa8-df66-11eb-bce8-0e4db6ae439b",  # Rule 7: Posting limits
+    "fd60122a-df66-11eb-93ed-0e956b4f6669",  # Rule 8: No memes
+    "643158c8-b0c3-11ec-8fad-0a0cedfa08f2",  # Rule 9: Link posts must include a submission statement
+    "597ab2f2-200e-11ed-81e1-ca42d471553b",  # Rule 11: Common Questions
+    "9af1649c-cfbf-11eb-b874-0ea1a57cb45d",  # Posting Guidelines for Sightings
+    "434058ea-df67-11eb-af98-0eaea14e6779",  # Better suited for the current megathread
+    "13d3b30c-94ad-11ed-b87c-bad73d311b50",  # Rule 12: Meta-posts must be posted in r/ufosmeta
+    "ce8f9fd6-ff69-11ed-862a-4adf08bd01f6",  # Rule 13: Low effort comments regarding public figures
+    "dd02bab2-ff69-11ed-9d19-2648400e7657"   # Rule 14: Off-topic political discussion
 ]
 
 # Flair ID for "Removed" in /r/UFOs_Archive
@@ -99,8 +99,8 @@ def wait_if_needed():
     retry=tenacity.retry_if_exception_type((RequestException, ResponseException, RedditAPIException)),
     before_sleep=lambda retry_state: logging.warning(f"Retrying API call: attempt {retry_state.attempt_number}")
 )
-def fetch_submission(subreddit, submission_id):
-    return subreddit.submission(id=submission_id)
+def fetch_submission(reddit, submission_id):
+    return reddit.submission(id=submission_id)
 
 print("Starting script: Checking posts from the last 16 hours.")
 
@@ -133,7 +133,7 @@ for archived_submission in destination_subreddit.new(limit=200):
 
         try:
             # Fetch the original post in /r/ufos using moderator credentials
-            original_submission = fetch_submission(source_subreddit, original_post_id)
+            original_submission = fetch_submission(source_reddit, original_post_id)
             wait_if_needed()
 
             # Check if post is removed, deleted, or has a removal flair
@@ -153,7 +153,7 @@ for archived_submission in destination_subreddit.new(limit=200):
             else:
                 logging.debug(f"Original post still exists: {original_post_id}")
 
-        except NotFound:
+        except NotcıFound:
             archived_submission.mod.flair(flair_template_id=removed_flair_id)
             logging.info(f"Original post not found, marked as removed: {archived_submission.id}")
             print(f"Original post not found, marked as removed: {archived_submission.title}")
