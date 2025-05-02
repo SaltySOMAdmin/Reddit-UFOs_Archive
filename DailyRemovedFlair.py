@@ -6,6 +6,7 @@ from prawcore.exceptions import RequestException, ResponseException, NotFound
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 import re
+import time
 
 # Set up logging
 logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
@@ -26,8 +27,6 @@ destination_subreddit = reddit.subreddit('UFOs_Archive')
 # Get current time and calculate cutoff for the last 16 hours
 current_time = datetime.now(timezone.utc)
 cutoff_time = current_time - timedelta(hours=16)
-
-print("Starting script: Checking posts from the last 16 hours.")
 
 # List of removal flairs in /r/ufos
 removal_flairs = [
@@ -50,6 +49,18 @@ removal_flairs = [
 
 removed_flair_id = "2aae3c82-e59b-11ef-82e4-264414cc8e5f"
 
+REQUEST_DELAY = 1.2  # Adjust based on your testing and Reddit's rate limits (1.0–1.5 is usually safe)
+last_request_time = 0
+
+def wait_if_needed():
+    global last_request_time
+    elapsed = time.time() - last_request_time
+    if elapsed < REQUEST_DELAY:
+        time.sleep(REQUEST_DELAY - elapsed)
+    last_request_time = time.time()
+
+print("Starting script: Checking posts from the last 16 hours.")
+
 # Check posts in /r/UFOs_Archive
 for archived_submission in destination_subreddit.new(limit=200):  # Adjust limit if needed
     try:
@@ -71,7 +82,7 @@ for archived_submission in destination_subreddit.new(limit=200):  # Adjust limit
 
                 try:
                     original_submission = reddit.submission(id=original_post_id)
-                    time.sleep(5)  # Rate limit handling after fetching submission
+                    wait_if_needed()  # Rate limit handling after fetching submission
 
                     if original_submission.removed_by_category or original_submission.selftext == "[deleted]" or (original_submission.link_flair_text and original_submission.link_flair_text in removal_flairs):
                         archived_submission.mod.flair(flair_template_id=removed_flair_id)
@@ -87,7 +98,7 @@ for archived_submission in destination_subreddit.new(limit=200):  # Adjust limit
                 except Exception as e:
                     logging.error(f"Error fetching original post {original_post_id}: {str(e)}")
 
-        time.sleep(5)  # Rate limit handling after each post check
+        wait_if_needed()  # Rate limit handling after each post check
     
     except (RequestException, ResponseException, RedditAPIException) as ex:
         logging.error(f"Reddit API error for archived post {archived_submission.id}: {str(ex)}")
