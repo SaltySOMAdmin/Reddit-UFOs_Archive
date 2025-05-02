@@ -49,7 +49,7 @@ removal_flairs = [
 
 removed_flair_id = "2aae3c82-e59b-11ef-82e4-264414cc8e5f"
 
-REQUEST_DELAY = 1.0  # Reduced slightly for efficiency, adjust if rate limits are hit
+REQUEST_DELAY = 1.0  # Adjust if rate limits are hit
 last_request_time = 0
 
 def wait_if_needed():
@@ -88,7 +88,8 @@ for archived_submission in destination_subreddit.new(limit=200):
         # Search for original post ID in comments
         for comment in archived_submission.comments:
             if comment.author and comment.author.name == config.destination_username:  # Ensure comment is from bot
-                match = re.search(r'\*\*Original Post ID:\*\* `([a-z0-9]+)`', comment.body)
+                # Updated regex to match "Original Post ID: 1kd64ds" without bold
+                match = re.search(r'Original Post ID: ([a-z0-9]+)', comment.body)
                 if match:
                     original_post_id = match.group(1)
                     logging.debug(f"Extracted original post ID: {original_post_id}")
