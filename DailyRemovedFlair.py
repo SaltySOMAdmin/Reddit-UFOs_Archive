@@ -1,11 +1,3 @@
-reddit = praw.Reddit(
-    client_id=config.source_client_id, 
-    client_secret=config.source_client_secret,
-    password=config.source_password,
-    username=config.source_username,
-    user_agent=config.source_user_agent
-)
-Script:
 import praw
 import time
 import logging
