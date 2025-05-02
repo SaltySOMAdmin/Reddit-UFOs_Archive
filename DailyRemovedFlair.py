@@ -11,7 +11,7 @@ import tenacity
 # Set up logging
 logging.basicConfig(
     filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt',
-    level=logging.DEBUG,
+    level=logging.ERROR,
     format='%(asctime)s %(levelname)s: %(message)s'
 )
 
@@ -39,7 +39,7 @@ destination_subreddit = destination_reddit.subreddit('UFOs_Archive')
 
 # Get current time and calculate cutoff for the last 16 hours
 current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - timedelta(hours=16)
+cutoff_time = current_time - timedelta(hours=52)
 
 # List of removal flair texts in /r/ufos
 removal_flairs = [
