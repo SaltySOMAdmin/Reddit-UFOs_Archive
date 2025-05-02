@@ -8,7 +8,7 @@ import config  # Your config file
 import re
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR,
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.debug,
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials — ***use your MOD credentials to see all flair info***
