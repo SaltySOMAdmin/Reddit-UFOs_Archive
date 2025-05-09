@@ -142,10 +142,10 @@ for archived_submission in destination_subreddit.new(limit=200):
                 original_submission.selftext == "[deleted]" or
                 original_submission.selftext == "[removed]" or
                 (original_submission.link_flair_text and original_submission.link_flair_text in removal_flairs) or
-                (original_submission.link_flair_template_id and original_submission.link_flair_template_id in removal_flair_ids) or
+                (getattr(original_submission, "link_flair_template_id", None) in removal_flair_ids) or
                 not original_submission.author  # Author deleted or banned
             )
-
+            
             if is_removed:
                 archived_submission.mod.flair(flair_template_id=removed_flair_id)
                 logging.info(f"Updated flair to 'Removed' for archived post: {archived_submission.id}")
