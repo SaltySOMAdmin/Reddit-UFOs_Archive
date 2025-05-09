@@ -182,7 +182,7 @@ for submission in source_subreddit.new():
                 new_post.flair.select(matching_flair)
                 logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
             else:
-                logging.warning(f"No matching flair found for: {source_flair_text}")
+                logging.info(f"No matching flair found for: {source_flair_text}")
 
         if new_post:
             comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
