@@ -195,9 +195,8 @@ for submission in source_subreddit.new():
                 comment_body += f"\n\n**Original post text:** {submission.selftext}"
                 comment_body += "\n\n---\n\n"                
                 # Add flair ID if available
-            link_flair_template_id = getattr(submission, 'link_flair_template_id', None)
-            if link_flair_template_id:
-                comment_body += f"\n\n**Original Flair ID:** {link_flair_template_id}\n"
+            if hasattr(submission, 'link_flair_template_id'):
+                comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
                 comment_body += f"\n**Original Flair Text:** {submission.link_flair_text}"
 
