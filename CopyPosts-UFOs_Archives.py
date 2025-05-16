@@ -174,7 +174,7 @@ for submission in source_subreddit.new():
 
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
-        elif gallery_images:
+        elif gallery_images and all(os.path.exists(img) and os.path.getsize(img) > 0 for img in gallery_images):
             images = [{'image_path': path} for path in gallery_images]
             new_post = destination_subreddit.submit_gallery(title, images=images)
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
