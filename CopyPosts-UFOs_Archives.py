@@ -50,13 +50,13 @@ def download_media(url, file_name):
     headers = {'User-Agent': 'Mozilla/5.0'}
     response = requests.get(url, stream=True, headers=headers)
         if response.status_code == 200:
-        with open(file_name, 'wb') as out_file:
-            for chunk in response.iter_content(chunk_size=1024):
-                out_file.write(chunk)
-        return file_name
-    else:
-        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
-        return None
+            with open(file_name, 'wb') as out_file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    out_file.write(chunk)
+            return file_name
+        else:
+            logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
+            return None
 
 def split_text(text, max_length=10000):
     chunks = []
