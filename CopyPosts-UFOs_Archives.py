@@ -126,16 +126,20 @@ for submission in source_subreddit.new():
         gallery_images = []
 
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
-            for item in submission.gallery_data['items']:
-                media_id = item['media_id']
-                meta = submission.media_metadata.get(media_id, {})
-                if 's' in meta and 'u' in meta['s']:
-                    img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                    ext = os.path.splitext(img_url)[-1]
-                    file_name = f"{media_id}{ext}"
-                    downloaded = download_media(img_url, file_name)
-                    if downloaded:
-                        gallery_images.append(downloaded)
+            gallery_data = getattr(submission, "gallery_data", {})
+            items = gallery_data.get("items", [])
+
+            if items:
+                for item in items:
+                    media_id = item['media_id']
+                    meta = submission.media_metadata.get(media_id, {})
+                    if 's' in meta and 'u' in meta['s']:
+                        img_url = meta['s']['u'].split('?')[0].replace("&", "&")
+                        ext = os.path.splitext(img_url)[-1]
+                        file_name = f"{media_id}{ext}"
+                        downloaded = download_media(img_url, file_name)
+                        if downloaded:
+                            gallery_images.append(downloaded)
         elif not is_self_post:
             if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 file_name = submission.url.split('/')[-1]
