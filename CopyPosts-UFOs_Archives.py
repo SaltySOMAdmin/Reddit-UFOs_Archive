@@ -126,20 +126,16 @@ for submission in source_subreddit.new():
         gallery_images = []
 
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
-            gallery_data = getattr(submission, "gallery_data", {})
-            items = gallery_data.get("items", [])
-
-            if items:
-                for item in items:
-                    media_id = item['media_id']
-                    meta = submission.media_metadata.get(media_id, {})
-                    if 's' in meta and 'u' in meta['s']:
-                        img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                        ext = os.path.splitext(img_url)[-1]
-                        file_name = f"{media_id}{ext}"
-                        downloaded = download_media(img_url, file_name)
-                        if downloaded:
-                            gallery_images.append(downloaded)
+            for item in submission.gallery_data['items']:
+                media_id = item['media_id']
+                meta = submission.media_metadata.get(media_id, {})
+                if 's' in meta and 'u' in meta['s']:
+                    img_url = meta['s']['u'].split('?')[0].replace("&", "&")
+                    ext = os.path.splitext(img_url)[-1]
+                    file_name = f"{media_id}{ext}"
+                    downloaded = download_media(img_url, file_name)
+                    if downloaded:
+                        gallery_images.append(downloaded)
         elif not is_self_post:
             if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 file_name = submission.url.split('/')[-1]
@@ -165,13 +161,9 @@ for submission in source_subreddit.new():
 
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
-        elif gallery_images and len(gallery_images) >= 1:
-            images = [{'image_path': path} for path in gallery_images if os.path.exists(path) and os.path.getsize(path) > 0]
-            if len(images) >= 1:
-                new_post = destination_subreddit.submit_gallery(title, images=images)
-            else:
-                logging.warning(f"Post {submission.id} flagged as gallery but contains no valid images. Falling back to link.")
-                new_post = destination_subreddit.submit(title, url=submission.url)
+        elif gallery_images:
+            images = [{'image_path': path} for path in gallery_images]
+            new_post = destination_subreddit.submit_gallery(title, images=images)
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
             if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 new_post = destination_subreddit.submit_image(title, image_path=media_url)
