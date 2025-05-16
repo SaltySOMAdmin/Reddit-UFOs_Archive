@@ -8,7 +8,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
-from urllib.parse import urlparse, parse_qs, unquote
 import config  # Import the config file with credentials
 
 # Set up logging
@@ -46,8 +45,13 @@ def save_processed_post(post_id):
         file.write(post_id + "\n")
 
 def download_media(url, file_name):
-    url = clean_url(url) #cleans URL if reddit links to a redirect - rare I think
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    if "preview.redd.it" in url:
+        url = url.replace("preview.redd.it", "i.redd.it")
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0'
+    }
+
     response = requests.get(url, stream=True, headers=headers)
     if response.status_code == 200:
         with open(file_name, 'wb') as out_file:
@@ -74,23 +78,6 @@ def get_audio_url(video_url):
         base_url = video_url.rsplit('/', 1)[0]
         return f"{base_url}/DASH_audio.mp4"
     return None
-
-from urllib.parse import urlparse, parse_qs, unquote
-
-def clean_url(url):
-    # Handle Reddit redirectors like /media?url=
-    if "reddit.com/media?url=" in url:
-        parsed = urlparse(url)
-        real_url = parse_qs(parsed.query).get("url", [None])[0]
-        if real_url:
-            url = unquote(real_url)
-
-    # Convert preview.redd.it to i.redd.it
-    if "preview.redd.it" in url:
-        url = url.replace("preview.redd.it", "i.redd.it")
-        url = url.split('?')[0]  # Strip query params
-
-    return url
 
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
@@ -174,7 +161,7 @@ for submission in source_subreddit.new():
 
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
-        elif gallery_images and all(os.path.exists(img) and os.path.getsize(img) > 0 for img in gallery_images):
+        elif gallery_images:
             images = [{'image_path': path} for path in gallery_images]
             new_post = destination_subreddit.submit_gallery(title, images=images)
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
