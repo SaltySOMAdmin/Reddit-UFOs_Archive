@@ -109,129 +109,131 @@ processed_posts = load_processed_posts()
 # Test single post by ID
 test_post_id = "1knunoq"
 submission = source_reddit.submission(id=test_post_id)
-    try:
-        logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
-        audio_url = None
 
-        title = submission.title
-        is_self_post = submission.is_self
-        media_url = None
-        original_media_url = None
-        gallery_images = []
+try:
+    logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+    audio_url = None
 
-        if hasattr(submission, 'is_gallery') and submission.is_gallery:
-            for item in submission.gallery_data['items']:
-                media_id = item['media_id']
-                meta = submission.media_metadata.get(media_id, {})
-                if 's' in meta and 'u' in meta['s']:
-                    img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                    ext = os.path.splitext(img_url)[-1]
-                    file_name = f"{media_id}{ext}"
-                    downloaded = download_media(img_url, file_name)
-                    if downloaded:
-                        gallery_images.append(downloaded)
-        elif not is_self_post:
-            if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-                file_name = submission.url.split('/')[-1]
-                media_url = download_media(submission.url, file_name)
-                original_media_url = submission.url
-            elif 'v.redd.it' in submission.url and submission.media:
-                reddit_video = submission.media.get('reddit_video', {})
-                video_url = reddit_video.get('fallback_url')
-                has_audio = reddit_video.get('has_audio', False)
-                is_gif = reddit_video.get('is_gif', False)
+    title = submission.title
+    is_self_post = submission.is_self
+    media_url = None
+    original_media_url = None
+    gallery_images = []
 
-                if video_url:
-                    file_name = 'media_video.mp4'
-                    media_url = download_media(video_url, file_name)
-                    original_media_url = video_url
+    if hasattr(submission, 'is_gallery') and submission.is_gallery:
+        for item in submission.gallery_data['items']:
+            media_id = item['media_id']
+            meta = submission.media_metadata.get(media_id, {})
+            if 's' in meta and 'u' in meta['s']:
+                img_url = meta['s']['u'].split('?')[0].replace("&", "&")
+                ext = os.path.splitext(img_url)[-1]
+                file_name = f"{media_id}{ext}"
+                downloaded = download_media(img_url, file_name)
+                if downloaded:
+                    gallery_images.append(downloaded)
+    elif not is_self_post:
+        if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+            file_name = submission.url.split('/')[-1]
+            media_url = download_media(submission.url, file_name)
+            original_media_url = submission.url
+        elif 'v.redd.it' in submission.url and submission.media:
+            reddit_video = submission.media.get('reddit_video', {})
+            video_url = reddit_video.get('fallback_url')
+            has_audio = reddit_video.get('has_audio', False)
+            is_gif = reddit_video.get('is_gif', False)
 
-                    if has_audio and not is_gif:
-                        audio_url = get_audio_url(submission.url)
+            if video_url:
+                file_name = 'media_video.mp4'
+                media_url = download_media(video_url, file_name)
+                original_media_url = video_url
 
-        new_post = None
-        source_flair_text = submission.link_flair_text
+                if has_audio and not is_gif:
+                    audio_url = get_audio_url(submission.url)
 
-        if is_self_post:
-            new_post = destination_subreddit.submit(title, selftext=submission.selftext)
-        elif gallery_images:
-            images = [{'image_path': path} for path in gallery_images]
-            new_post = destination_subreddit.submit_gallery(title, images=images)
-        elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
-            if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-                new_post = destination_subreddit.submit_image(title, image_path=media_url)
-            elif media_url.endswith('mp4'):
-                new_post = destination_subreddit.submit_video(title, video_path=media_url)
-        else:
-            # Check for preview image in link post
-            preview_url = None
-            if hasattr(submission, 'preview'):
-                images = submission.preview.get('images')
-                if images and len(images) > 0:
-                    preview_source = images[0].get('source', {}).get('url')
-                    if preview_source and 'preview.redd.it' in preview_source:
-                        preview_url = preview_source.split('?')[0].replace("preview.redd.it", "i.redd.it")
+    new_post = None
+    source_flair_text = submission.link_flair_text
 
-            if preview_url:
-                file_name = preview_url.split('/')[-1]
-                media_url = download_media(preview_url, file_name)
-                original_media_url = preview_url
+    if is_self_post:
+        new_post = destination_subreddit.submit(title, selftext=submission.selftext)
+    elif gallery_images:
+        images = [{'image_path': path} for path in gallery_images]
+        new_post = destination_subreddit.submit_gallery(title, images=images)
+    elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
+        if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+            new_post = destination_subreddit.submit_image(title, image_path=media_url)
+        elif media_url.endswith('mp4'):
+            new_post = destination_subreddit.submit_video(title, video_path=media_url)
+    else:
+        # Check for preview image in link post
+        preview_url = None
+        if hasattr(submission, 'preview'):
+            images = submission.preview.get('images')
+            if images and len(images) > 0:
+                preview_source = images[0].get('source', {}).get('url')
+                if preview_source and 'preview.redd.it' in preview_source:
+                    preview_url = preview_source.split('?')[0].replace("preview.redd.it", "i.redd.it")
 
-                if media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
-                    if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-                        new_post = destination_subreddit.submit_image(title, image_path=media_url)
-                    else:
-                        new_post = destination_subreddit.submit(title, url=submission.url)
+        if preview_url:
+            file_name = preview_url.split('/')[-1]
+            media_url = download_media(preview_url, file_name)
+            original_media_url = preview_url
+
+            if media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
+                if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+                    new_post = destination_subreddit.submit_image(title, image_path=media_url)
                 else:
                     new_post = destination_subreddit.submit(title, url=submission.url)
             else:
                 new_post = destination_subreddit.submit(title, url=submission.url)
+        else:
+            new_post = destination_subreddit.submit(title, url=submission.url)
 
-        if new_post and source_flair_text:
-            matching_flair = None
-            for flair in destination_subreddit.flair.link_templates:
-                if flair['text'] == source_flair_text:
-                    matching_flair = flair['id']
-                    break
-            if matching_flair:
-                new_post.flair.select(matching_flair)
-                logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
-            else:
-                logging.info(f"No matching flair found for: {source_flair_text}")
+    if new_post and source_flair_text:
+        matching_flair = None
+        for flair in destination_subreddit.flair.link_templates:
+            if flair['text'] == source_flair_text:
+                matching_flair = flair['id']
+                break
+        if matching_flair:
+            new_post.flair.select(matching_flair)
+            logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
+        else:
+            logging.info(f"No matching flair found for: {source_flair_text}")
 
-        if new_post:
-            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
-            comment_body += f"\n**Original Post ID:** {submission.id}"
-            if original_media_url:
-                comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
-            if audio_url:
-                comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
-            if submission.selftext:
-                comment_body += f"\n\n**Original post text:** {submission.selftext}"
-                comment_body += "\n\n---\n\n"
-            if hasattr(submission, 'link_flair_template_id'):
-                comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
-            if submission.link_flair_text:
-                comment_body += f"\n**Original Flair Text:** {submission.link_flair_text}"
+    if new_post:
+        comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
+        comment_body += f"\n**Original Post ID:** {submission.id}"
+        if original_media_url:
+            comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
+        if audio_url:
+            comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
+        if submission.selftext:
+            comment_body += f"\n\n**Original post text:** {submission.selftext}"
+            comment_body += "\n\n---\n\n"
+        if hasattr(submission, 'link_flair_template_id'):
+            comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
+        if submission.link_flair_text:
+            comment_body += f"\n**Original Flair Text:** {submission.link_flair_text}"
 
-            if len(comment_body) > 10000:
-                for chunk in split_text(comment_body):
-                    new_post.reply(chunk)
-                    time.sleep(5)
-            else:
-                new_post.reply(comment_body)
+        if len(comment_body) > 10000:
+            for chunk in split_text(comment_body):
+                new_post.reply(chunk)
+                time.sleep(5)
+        else:
+            new_post.reply(comment_body)
 
-        save_processed_post(submission.id)
-        print(f"Copied post {submission.id}: {submission.title}")
-        time.sleep(10)
+    save_processed_post(submission.id)
+    print(f"Copied post {submission.id}: {submission.title}")
+    time.sleep(10)
 
-    except (RequestException, ResponseException, RedditAPIException) as ex:
-        logging.error(f"Error for post {submission.id}: {str(ex)}")
-    except Exception as e:
-        logging.error(f"General error for post {submission.id}: {str(e)}")
+except (RequestException, ResponseException, RedditAPIException) as ex:
+    logging.error(f"Error for post {submission.id}: {str(ex)}")
+except Exception as e:
+    logging.error(f"General error for post {submission.id}: {str(e)}")
 
-    for img in gallery_images:
-        if os.path.exists(img):
-            os.remove(img)
-    if media_url and os.path.exists(media_url):
-        os.remove(media_url)
+# Clean up
+for img in gallery_images:
+    if os.path.exists(img):
+        os.remove(img)
+if media_url and os.path.exists(media_url):
+    os.remove(media_url)
