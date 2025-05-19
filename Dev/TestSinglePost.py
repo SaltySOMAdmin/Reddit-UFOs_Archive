@@ -120,9 +120,13 @@ try:
     original_media_url = None
     gallery_images = []
 
-    if hasattr(submission, 'is_gallery') and submission.is_gallery:
-        for item in submission.gallery_data['items']:
-            media_id = item['media_id']
+    if getattr(submission, 'is_gallery', False):
+    gallery_items = getattr(submission.gallery_data, 'items', None)
+    if gallery_items and isinstance(gallery_items, list) and len(gallery_items) > 0:
+        for item in gallery_items:
+            media_id = item.get('media_id')
+            if not media_id:
+                continue
             meta = submission.media_metadata.get(media_id, {})
             if 's' in meta and 'u' in meta['s']:
                 img_url = meta['s']['u'].split('?')[0].replace("&", "&")
@@ -131,6 +135,9 @@ try:
                 downloaded = download_media(img_url, file_name)
                 if downloaded:
                     gallery_images.append(downloaded)
+    else:
+        logging.warning(f"Submission {submission.id} marked as gallery but no items found or empty list.")
+
     elif not is_self_post:
         if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
             file_name = submission.url.split('/')[-1]
