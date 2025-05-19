@@ -135,9 +135,8 @@ try:
                 downloaded = download_media(img_url, file_name)
                 if downloaded:
                     gallery_images.append(downloaded)
-    else:
-        logging.warning(f"Submission {submission.id} marked as gallery but no items found or empty list.")
-
+                else:
+                    logging.warning(f"Submission {submission.id} marked as gallery but no items found or empty list.")
     elif not is_self_post:
         if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
             file_name = submission.url.split('/')[-1]
