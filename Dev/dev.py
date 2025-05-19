@@ -11,7 +11,7 @@ from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR,
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -137,13 +137,10 @@ for submission in source_subreddit.new():
                     if downloaded:
                         gallery_images.append(downloaded)
         elif not is_self_post:
-            corrected_url = submission.url
-            if "preview.redd.it" in corrected_url:
-                corrected_url = re.sub(r'^https://preview\.redd\.it/([^?]+)\?.*$', r'https://i.redd.it/\1', corrected_url)
-            if corrected_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-                file_name = corrected_url.split('/')[-1]
-                media_url = download_media(corrected_url, file_name)
-                original_media_url = corrected_url
+            if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+                file_name = submission.url.split('/')[-1]
+                media_url = download_media(submission.url, file_name)
+                original_media_url = submission.url
             elif 'v.redd.it' in submission.url and submission.media:
                 reddit_video = submission.media.get('reddit_video', {})
                 video_url = reddit_video.get('fallback_url')
@@ -155,7 +152,6 @@ for submission in source_subreddit.new():
                     media_url = download_media(video_url, file_name)
                     original_media_url = video_url
 
-                    # Include audio only if present (for non-gif videos)
                     if has_audio and not is_gif:
                         audio_url = get_audio_url(submission.url)
 
@@ -173,7 +169,29 @@ for submission in source_subreddit.new():
             elif media_url.endswith('mp4'):
                 new_post = destination_subreddit.submit_video(title, video_path=media_url)
         else:
-            new_post = destination_subreddit.submit(title, url=submission.url)
+            # Check for preview image in link post
+            preview_url = None
+            if hasattr(submission, 'preview'):
+                images = submission.preview.get('images')
+                if images and len(images) > 0:
+                    preview_source = images[0].get('source', {}).get('url')
+                    if preview_source and 'preview.redd.it' in preview_source:
+                        preview_url = preview_source.split('?')[0].replace("preview.redd.it", "i.redd.it")
+
+            if preview_url:
+                file_name = preview_url.split('/')[-1]
+                media_url = download_media(preview_url, file_name)
+                original_media_url = preview_url
+
+                if media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
+                    if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+                        new_post = destination_subreddit.submit_image(title, image_path=media_url)
+                    else:
+                        new_post = destination_subreddit.submit(title, url=submission.url)
+                else:
+                    new_post = destination_subreddit.submit(title, url=submission.url)
+            else:
+                new_post = destination_subreddit.submit(title, url=submission.url)
 
         if new_post and source_flair_text:
             matching_flair = None
@@ -196,8 +214,7 @@ for submission in source_subreddit.new():
                 comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\n**Original post text:** {submission.selftext}"
-                comment_body += "\n\n---\n\n"                
-                # Add flair ID if available
+                comment_body += "\n\n---\n\n"
             if hasattr(submission, 'link_flair_template_id'):
                 comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
