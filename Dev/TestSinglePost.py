@@ -1,86 +1,51 @@
 import praw
-import requests
-import os
-import re
-import logging
-from praw.exceptions import RedditAPIException
-from prawcore.exceptions import RequestException, ResponseException
 import config
+import re
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
-
-# Reddit API
+# Set up Reddit instance
 reddit = praw.Reddit(
     client_id=config.source_client_id,
     client_secret=config.source_client_secret,
-    username=config.source_username,
     password=config.source_password,
+    username=config.source_username,
     user_agent=config.source_user_agent
 )
 
-dest_reddit = praw.Reddit(
-    client_id=config.destination_client_id,
-    client_secret=config.destination_client_secret,
-    username=config.destination_username,
-    password=config.destination_password,
-    user_agent=config.destination_user_agent
-)
+post_id = "1kqgzrd"
+submission = reddit.submission(id=post_id)
 
-submission_id = "1knunoq"
-submission = reddit.submission(id=submission_id)
-submission_title = submission.title
-submission_url = submission.url
-is_self_post = submission.is_self
-destination_subreddit = dest_reddit.subreddit("SaltyDevSub")
+print(f"\nTitle: {submission.title}")
+print(f"Author: {submission.author}")
+print(f"Created: {submission.created_utc}")
+print(f"Flair: {submission.link_flair_text} | Flair Template ID: {submission.link_flair_template_id}")
+print(f"Is self post: {submission.is_self}")
+print(f"URL: {submission.url}")
+print(f"Is gallery: {getattr(submission, 'is_gallery', False)}")
+print(f"Is video: {'v.redd.it' in submission.url}")
+print(f"Post Hint: {getattr(submission, 'post_hint', 'N/A')}")
+print(f"Is Reddit hosted preview image? {'preview.redd.it' in submission.url}")
 
-def download_media(url, filename):
-    try:
-        if "preview.redd.it" in url:
-            url = re.sub(r'^https://preview\.redd\.it/([^?]+)\?.*$', r'https://i.redd.it/\1', url)
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, stream=True, headers=headers)
-        if r.status_code == 200:
-            with open(filename, 'wb') as f:
-                for chunk in r.iter_content(1024):
-                    f.write(chunk)
-            return filename
-        else:
-            logging.error(f"Failed to download {url}, status code: {r.status_code}")
-    except Exception as e:
-        logging.error(f"Exception downloading media: {str(e)}")
-    return None
+# Check for preview image transformation
+if "preview.redd.it" in submission.url:
+    clean_url = submission.url.split('?')[0].replace("preview.redd.it", "i.redd.it")
+    print(f"Transformed image URL: {clean_url}")
 
-try:
-    logging.info(f"Fetching post: {submission_title}")
+# If gallery, print media info
+if hasattr(submission, 'is_gallery') and submission.is_gallery:
+    print("\nGallery Items:")
+    for item in submission.gallery_data['items']:
+        media_id = item['media_id']
+        meta = submission.media_metadata.get(media_id, {})
+        url = meta.get('s', {}).get('u')
+        print(f" - Media ID: {media_id}, URL: {url}")
 
-    new_post = None
-    media_path = None
-    corrected_url = submission_url
+# If Reddit video, extract fallback and audio URL
+if 'v.redd.it' in submission.url and submission.media:
+    reddit_video = submission.media.get('reddit_video', {})
+    fallback = reddit_video.get('fallback_url')
+    audio_url = fallback.rsplit('/', 1)[0] + '/DASH_audio.mp4'
+    print(f"\nVideo fallback URL: {fallback}")
+    print(f"Audio URL: {audio_url}")
 
-    if "preview.redd.it" in submission_url:
-        corrected_url = re.sub(r'^https://preview\.redd\.it/([^?]+)\?.*$', r'https://i.redd.it/\1', submission_url)
-
-    if is_self_post:
-        new_post = destination_subreddit.submit(submission_title, selftext=submission.selftext)
-    elif corrected_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-        file_name = corrected_url.split('/')[-1]
-        media_path = download_media(corrected_url, file_name)
-        if media_path:
-            new_post = destination_subreddit.submit_image(submission_title, image_path=media_path)
-    else:
-        new_post = destination_subreddit.submit(submission_title, url=submission_url)
-
-    if new_post:
-        comment = f"Original post: [Link](https://reddit.com/{submission_id})"
-        if submission.selftext:
-            comment += f"\n\n---\n\n{submission.selftext}"
-        new_post.reply(comment)
-        logging.info(f"Posted: {new_post.id}")
-    if media_path and os.path.exists(media_path):
-        os.remove(media_path)
-
-except (RedditAPIException, RequestException, ResponseException) as e:
-    logging.error(f"Reddit API error: {str(e)}")
-except Exception as e:
-    logging.error(f"General error: {str(e)}")
+print("\nSubmission selftext:")
+print(submission.selftext or "[No selftext]")
