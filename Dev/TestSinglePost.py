@@ -120,50 +120,73 @@ try:
     original_media_url = None
     gallery_images = []
 
+    # Handle gallery posts normally
     if getattr(submission, 'is_gallery', False):
         gallery_items = getattr(submission.gallery_data, 'items', None)
-    if gallery_items and isinstance(gallery_items, list) and len(gallery_items) > 0:
-        for item in gallery_items:
-            media_id = item.get('media_id')
-            if not media_id:
-                continue
-            meta = submission.media_metadata.get(media_id, {})
-            if 's' in meta and 'u' in meta['s']:
-                img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                ext = os.path.splitext(img_url)[-1]
-                file_name = f"{media_id}{ext}"
-                downloaded = download_media(img_url, file_name)
-                if downloaded:
-                    gallery_images.append(downloaded)
-                else:
-                    logging.warning(f"Submission {submission.id} marked as gallery but no items found or empty list.")
-    elif not is_self_post:
-        if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
-            file_name = submission.url.split('/')[-1]
-            media_url = download_media(submission.url, file_name)
-            original_media_url = submission.url
-        elif 'v.redd.it' in submission.url and submission.media:
-            reddit_video = submission.media.get('reddit_video', {})
-            video_url = reddit_video.get('fallback_url')
-            has_audio = reddit_video.get('has_audio', False)
-            is_gif = reddit_video.get('is_gif', False)
+        if gallery_items and isinstance(gallery_items, list) and len(gallery_items) > 0:
+            for item in gallery_items:
+                media_id = item.get('media_id')
+                if not media_id:
+                    continue
+                meta = submission.media_metadata.get(media_id, {})
+                if 's' in meta and 'u' in meta['s']:
+                    img_url = meta['s']['u'].split('?')[0].replace("&amp;", "&")
+                    ext = os.path.splitext(img_url)[-1]
+                    file_name = f"{media_id}{ext}"
+                    downloaded = download_media(img_url, file_name)
+                    if downloaded:
+                        gallery_images.append(downloaded)
+        else:
+            logging.warning(f"Submission {submission.id} marked as gallery but no items found or empty list.")
+    else:
+        # Not a gallery post, check if multiple preview images exist (for link/image posts)
+        if not is_self_post and hasattr(submission, 'preview') and 'images' in submission.preview:
+            images = submission.preview['images']
+            for idx, img in enumerate(images):
+                url = img.get('source', {}).get('url', '')
+                if url:
+                    url = url.split('?')[0].replace('&amp;', '&')
+                    ext = os.path.splitext(url)[1]
+                    file_name = f"{submission.id}_{idx}{ext}"
+                    downloaded = download_media(url, file_name)
+                    if downloaded:
+                        gallery_images.append(downloaded)
 
-            if video_url:
-                file_name = 'media_video.mp4'
-                media_url = download_media(video_url, file_name)
-                original_media_url = video_url
+        # If no gallery images detected from preview, fall back to other media types
+        if not gallery_images and not is_self_post:
+            if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
+                file_name = submission.url.split('/')[-1]
+                media_url = download_media(submission.url, file_name)
+                original_media_url = submission.url
+            elif 'v.redd.it' in submission.url and submission.media:
+                reddit_video = submission.media.get('reddit_video', {})
+                video_url = reddit_video.get('fallback_url')
+                has_audio = reddit_video.get('has_audio', False)
+                is_gif = reddit_video.get('is_gif', False)
 
-                if has_audio and not is_gif:
-                    audio_url = get_audio_url(submission.url)
+                if video_url:
+                    file_name = 'media_video.mp4'
+                    media_url = download_media(video_url, file_name)
+                    original_media_url = video_url
+
+                    if has_audio and not is_gif:
+                        audio_url = get_audio_url(submission.url)
 
     new_post = None
     source_flair_text = submission.link_flair_text
 
+    # Posting logic
     if is_self_post:
         new_post = destination_subreddit.submit(title, selftext=submission.selftext)
-    elif gallery_images:
-        images = [{'image_path': path} for path in gallery_images]
-        new_post = destination_subreddit.submit_gallery(title, images=images)
+    elif len(gallery_images) > 0:
+        # Submit as gallery if multiple images
+        if len(gallery_images) > 1:
+            images = [{'image_path': path} for path in gallery_images]
+            new_post = destination_subreddit.submit_gallery(title, images=images)
+        else:
+            # Single image: submit as image post
+            image_path = gallery_images[0]
+            new_post = destination_subreddit.submit_image(title, image_path=image_path)
     elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
         if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
             new_post = destination_subreddit.submit_image(title, image_path=media_url)
@@ -194,6 +217,7 @@ try:
         else:
             new_post = destination_subreddit.submit(title, url=submission.url)
 
+    # Apply flair if available and matching
     if new_post and source_flair_text:
         matching_flair = None
         for flair in destination_subreddit.flair.link_templates:
@@ -206,6 +230,7 @@ try:
         else:
             logging.info(f"No matching flair found for: {source_flair_text}")
 
+    # Post a comment linking to original post and media
     if new_post:
         comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
         comment_body += f"\n**Original Post ID:** {submission.id}"
@@ -237,7 +262,7 @@ except (RequestException, ResponseException, RedditAPIException) as ex:
 except Exception as e:
     logging.error(f"General error for post {submission.id}: {str(e)}")
 
-# Clean up
+# Clean up downloaded media files
 for img in gallery_images:
     if os.path.exists(img):
         os.remove(img)
