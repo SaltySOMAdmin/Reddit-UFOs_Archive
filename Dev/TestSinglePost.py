@@ -121,7 +121,7 @@ try:
     gallery_images = []
 
     if getattr(submission, 'is_gallery', False):
-    gallery_items = getattr(submission.gallery_data, 'items', None)
+        gallery_items = getattr(submission.gallery_data, 'items', None)
     if gallery_items and isinstance(gallery_items, list) and len(gallery_items) > 0:
         for item in gallery_items:
             media_id = item.get('media_id')
