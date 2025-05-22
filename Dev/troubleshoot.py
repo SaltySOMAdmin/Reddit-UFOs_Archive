@@ -39,7 +39,15 @@ session.headers.update({
 # Function to get audio URL with fallbacks and manifest parsing
 def get_audio_url(submission_data, post_url):
     try:
-        reddit_video = submission_data.get('media', {}).get('reddit_video', {}) if submission_data.get('media') else {}
+        # Check if submission_data is a PRAW Submission object or a dictionary
+        is_submission = isinstance(submission_data, praw.models.Submission)
+        if is_submission:
+            media = submission_data.media if hasattr(submission_data, 'media') and submission_data.media else {}
+            reddit_video = media.get('reddit_video', {})
+        else:
+            media = submission_data.get('media', {})
+            reddit_video = media.get('reddit_video', {})
+
         dash_url = reddit_video.get('dash_url')
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -126,7 +134,7 @@ def fetch_post_details(post_id):
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
             logging.info(f"Gallery Data: {submission.gallery_data}")
             logging.info(f"Media Metadata: {submission.media_metadata}")
-            for item in submission.gallery_data.get('items', []):
+            for item in submission.gallery_data.get('items', [] creeper):
                 media_id = item.get('media_id')
                 meta = submission.media_metadata.get(media_id, {})
                 logging.info(f"Gallery Item Media ID: {media_id}, Metadata: {meta}")
@@ -152,29 +160,12 @@ def fetch_post_details(post_id):
                 except Exception as e:
                     logging.error(f"PRAW Audio Request Error: {e}")
 
-                # Try downloading audio with session
+                # Try downloading audio with session (using PRAW's OAuth)
                 try:
-                    access_token = reddit.auth.token['access_token']
-                    headers = {'Authorization': f'Bearer {access_token}', 'User-Agent': config.source_user_agent}
-                    response = session.get(audio_url, headers=headers, timeout=5)
+                    response = session.get(audio_url, stream=True, timeout=5)
                     logging.info(f"Session Audio Request Status: {response.status_code}, Headers: {response.headers}")
                 except Exception as e:
                     logging.error(f"Session Audio Request Error: {e}")
-
-        # Check cross-post parent if applicable
-        if hasattr(submission, 'crosspost_parent') and submission.crosspost_parent:
-            parent_id = submission.crosspost_parent.split('_')[1]
-            logging.info(f"Fetching cross-post parent {parent_id}")
-            try:
-                parent_submission = reddit.submission(id=parent_id)
-                logging.info(f"Parent Title: {parent_submission.title}")
-                logging.info(f"Parent URL: {parent_submission.url}")
-                logging.info(f"Parent Media: {parent_submission.media}")
-                logging.info(f"Parent Removed: {parent_submission.removed_by_category}")
-                parent_audio_url = get_audio_url(parent_submission, parent_submission.url)
-                logging.info(f"Parent Derived Audio URL: {parent_audio_url}")
-            except Exception as e:
-                logging.error(f"Error fetching cross-post parent {parent_id}: {e}")
 
     except NotFound:
         logging.error(f"PRAW returned 404 for post {post_id}. Post may be deleted or inaccessible.")
@@ -183,16 +174,11 @@ def fetch_post_details(post_id):
     except Exception as e:
         logging.error(f"PRAW Error fetching details for post {post_id}: {e}")
 
-    # Fallback: Try fetching post JSON with OAuth authentication
+    # Fallback: Try fetching post JSON using PRAW's authenticated request
     try:
         logging.info(f"Attempting to fetch post {post_id} via authenticated JSON request")
         json_url = f"https://www.reddit.com/comments/{post_id}.json"
-        access_token = reddit.auth.token['access_token']
-        headers = {
-            'Authorization': f'Bearer {access_token}',
-            'User-Agent': config.source_user_agent
-        }
-        response = session.get(json_url, headers=headers, timeout=10)
+        response = reddit.request('GET', json_url)
         if response.status_code == 200:
             post_data = response.json()[0]['data']['children'][0]['data']
             logging.info(f"Authenticated JSON Post Data: {post_data}")
@@ -212,22 +198,24 @@ def fetch_post_details(post_id):
             audio_url = get_audio_url(post_data, post_data.get('url'))
             logging.info(f"Derived Audio URL from JSON: {audio_url}")
 
-            # Try downloading audio with session
+            # Try downloading audio with PRAW
             if audio_url:
                 try:
-                    response = session.get(audio_url, headers=headers, timeout=5)
-                    logging.info(f"Session Audio Request Status (JSON): {response.status_code}, Headers: {response.headers}")
+                    response = reddit.request('GET', audio_url, stream=True)
+                    logging.info(f"PRAW Audio Request Status (JSON): {response.status_code}, Headers: {response.headers}")
                 except Exception as e:
-                    logging.error(f"Session Audio Request Error (JSON): {e}")
+                    logging.error(f"PRAW Audio Request Error (JSON): {e}")
         else:
             logging.error(f"Authenticated JSON request failed for {json_url}. Status code: {response.status_code}, Headers: {response.headers}")
     except Exception as e:
         logging.error(f"Authenticated JSON request error for post {post_id}: {e}")
 
-    # Fallback: Check HTML page for removal status
+    # Fallback: Check HTML page for removal status with session cookies
     try:
         logging.info(f"Attempting to fetch post {post_id} HTML page")
         html_url = f"https://www.reddit.com/comments/{post_id}"
+        # Simulate a browser login by fetching the Reddit homepage first
+        session.get('https://www.reddit.com', timeout=5)
         response = session.get(html_url, timeout=10)
         if response.status_code == 200:
             html_content = response.text.lower()
@@ -250,5 +238,5 @@ def fetch_post_details(post_id):
 
 # Main execution
 if __name__ == "__main__":
-    post_id = "1ksxnxv"  # Correct post ID
+    post_id = "1ksxnxv"
     fetch_post_details(post_id)
