@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
+import subprocess # ffmpeg audio-video merge
 
 # Set up logging
 logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR,
@@ -34,6 +35,38 @@ archives_reddit = praw.Reddit(
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
+def merge_video_audio(video_path, audio_url, output_path='merged_video.mp4'):
+    audio_path = 'media_audio.mp4'
+    # Download audio
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    response = requests.get(audio_url, stream=True, headers=headers)
+    if response.status_code == 200:
+        with open(audio_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                f.write(chunk)
+    else:
+        logging.error(f"Failed to download audio from {audio_url}. Status code: {response.status_code}")
+        return video_path  # fallback to video only
+
+    # Merge with ffmpeg (stream copy)
+    try:
+        result = subprocess.run([
+            'ffmpeg', '-y',
+            '-i', video_path,
+            '-i', audio_path,
+            '-c', 'copy',
+            '-movflags', '+faststart',
+            output_path
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode != 0:
+            logging.error(f"ffmpeg error: {result.stderr.decode()}")
+            return video_path
+        return output_path
+    except Exception as e:
+        logging.error(f"ffmpeg merge exception: {e}")
+        return video_path
+        
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
         with open(PROCESSED_FILE, "r") as file:
@@ -74,23 +107,10 @@ def split_text(text, max_length=10000):
     return chunks
 
 def get_audio_url(video_url):
-    if "v.redd.it" not in video_url:
-        return None
-
-    base_url = video_url.rsplit('/', 1)[0]
-    audio_url = f"{base_url}/DASH_audio.mp4"
-
-    # Check if the audio file actually exists
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.head(audio_url, headers=headers)
-        if response.status_code == 200 and int(response.headers.get('Content-Length', 0)) > 1000:
-            return audio_url
-    except Exception as e:
-        logging.error(f"Error verifying audio URL: {audio_url} -> {e}")
-
+    if "v.redd.it" in video_url:
+        base_url = video_url.rsplit('/', 1)[0]
+        return f"{base_url}/DASH_audio.mp4"
     return None
-
 
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
@@ -171,20 +191,17 @@ try:
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
-            elif 'v.redd.it' in submission.url and submission.media:
-                reddit_video = submission.media.get('reddit_video', {})
-                video_url = reddit_video.get('fallback_url')
-                has_audio = reddit_video.get('has_audio', False)
-                is_gif = reddit_video.get('is_gif', False)
+            if video_url:
+                file_name = 'media_video.mp4'
+                media_url = download_media(video_url, file_name)
+                original_media_url = video_url
 
-                if video_url:
-                    file_name = 'media_video.mp4'
-                    media_url = download_media(video_url, file_name)
-                    original_media_url = video_url
-
-                    if has_audio and not is_gif:
-                        audio_url = get_audio_url(submission.url)
-
+                if has_audio and not is_gif:
+                    audio_url = get_audio_url(submission.url)
+                    if media_url and audio_url:
+                        merged_path = merge_video_audio(media_url, audio_url)
+                        if os.path.exists(merged_path):
+                            media_url = merged_path  # Replace original media_url with merged file
     new_post = None
     source_flair_text = submission.link_flair_text
 
@@ -281,3 +298,8 @@ for img in gallery_images:
         os.remove(img)
 if media_url and os.path.exists(media_url):
     os.remove(media_url)
+if os.path.exists('media_audio.mp4'):
+    os.remove('media_audio.mp4')
+if os.path.exists('merged_video.mp4') and media_url != 'merged_video.mp4':
+    os.remove('merged_video.mp4')
+
