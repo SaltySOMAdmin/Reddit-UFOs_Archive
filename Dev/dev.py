@@ -173,7 +173,7 @@ def get_audio_url(submission):
             audio_url = f"{base_url}/audio.mp4"
             response = session.head(audio_url, headers=headers, timeout=5)
             if response.status_code == 200:
- logging.info(f"Audio URL {audio_url} is accessible")
+                logging.info(f"Audio URL {audio_url} is accessible")
                 return audio_url
             logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
 
