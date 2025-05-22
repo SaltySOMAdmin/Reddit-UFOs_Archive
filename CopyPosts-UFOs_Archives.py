@@ -31,6 +31,10 @@ archives_reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
+# Subreddits
+source_subreddit = source_reddit.subreddit('ufos')
+destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
+
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/processed_posts.txt"
 
@@ -78,10 +82,6 @@ def get_audio_url(video_url):
         base_url = video_url.rsplit('/', 1)[0]
         return f"{base_url}/DASH_audio.mp4"
     return None
-
-# Subreddits
-source_subreddit = source_reddit.subreddit('ufos')
-destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Parse time delta from command-line argument
 def parse_time_delta(arg):

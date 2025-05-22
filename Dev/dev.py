@@ -11,7 +11,7 @@ from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR,
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -37,36 +37,6 @@ destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
 
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
-
-def download_reddit_video_with_audio(submission_url, output_path='merged_video.mp4'):
-    red_url = f"https://redcdn.net/api/info?url={submission_url}"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-
-    try:
-        response = requests.get(red_url, headers=headers)
-        if response.status_code != 200:
-            logging.error(f"RedDownloader API failed: {response.status_code}")
-            return None
-
-        data = response.json()
-        video_url = data.get('video', {}).get('url')
-        if not video_url:
-            logging.error("RedDownloader response did not include video URL.")
-            return None
-
-        r = requests.get(video_url, stream=True, headers=headers)
-        if r.status_code == 200:
-            with open(output_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            return output_path
-        else:
-            logging.error(f"Failed to download merged video from RedDownloader. Status: {r.status_code}")
-            return None
-
-    except Exception as e:
-        logging.error(f"Error using RedDownloader: {e}")
-        return None
 
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
@@ -107,20 +77,28 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
+def get_audio_url(video_url):
+    if "v.redd.it" in video_url:
+        base_url = video_url.rsplit('/', 1)[0]
+        return f"{base_url}/DASH_audio.mp4"
+    return None
+
+# Parse time delta from command-line argument
 def parse_time_delta(arg):
     if not arg:
-        return timedelta(minutes=28)
+        return timedelta(minutes=28)  # Default to 28 minutes if no argument
     match = re.match(r'^(\d+)([mh])$', arg)
     if not match:
         logging.error(f"Invalid time delta format: {arg}. Using default 28 minutes.")
         return timedelta(minutes=28)
     value, unit = int(match.group(1)), match.group(2)
-    return timedelta(minutes=value) if unit == 'm' else timedelta(hours=value)
+    if unit == 'm':
+        return timedelta(minutes=value)
+    elif unit == 'h':
+        return timedelta(hours=value)
 
 # Get time delta from command-line argument
 time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
-
-
 
 # Time filtering
 current_time = datetime.now(timezone.utc)
@@ -132,6 +110,7 @@ processed_posts = load_processed_posts()
 for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+        audio_url = None
 
         if submission.id in processed_posts:
             continue
@@ -145,7 +124,6 @@ for submission in source_subreddit.new():
         media_url = None
         original_media_url = None
         gallery_images = []
-        merged_audio = False
 
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
             for item in submission.gallery_data['items']:
@@ -163,15 +141,20 @@ for submission in source_subreddit.new():
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
-            elif 'v.redd.it' in submission.url:
-                video_path = download_reddit_video_with_audio(submission.url)
-                if video_path and os.path.exists(video_path):
-                    logging.info(f"Downloaded video with audio from RedDownloader: {video_path}")
-                    media_url = video_path
-                    original_media_url = submission.url
-                    merged_audio = True
-                else:
-                    logging.error("Failed to download video with RedDownloader")
+            elif 'v.redd.it' in submission.url and submission.media:
+                reddit_video = submission.media.get('reddit_video', {})
+                video_url = reddit_video.get('fallback_url')
+                has_audio = reddit_video.get('has_audio', False)
+                is_gif = reddit_video.get('is_gif', False)
+
+                if video_url:
+                    file_name = 'media_video.mp4'
+                    media_url = download_media(video_url, file_name)
+                    original_media_url = video_url
+
+                    # Include audio only if present (for non-gif videos)
+                    if has_audio and not is_gif:
+                        audio_url = get_audio_url(submission.url)
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -202,20 +185,18 @@ for submission in source_subreddit.new():
                 logging.info(f"No matching flair found for: {source_flair_text}")
 
         if new_post:
-            comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
+            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
-            if not merged_audio and submission.media and 'reddit_video' in submission.media:
-                reddit_video = submission.media['reddit_video']
-                dash_url = reddit_video.get('dash_url')
-                if dash_url:
-                    audio_url = dash_url.rsplit('/', 1)[0] + '/DASH_audio.mp4'
-                    comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
+            if audio_url:
+                comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
             if submission.selftext:
-                comment_body += f"\n\n**Original post text:** {submission.selftext}\n\n---"
+                comment_body += f"\n\n**Original post text:** {submission.selftext}"
+                comment_body += "\n\n---\n\n"                
+                # Add flair ID if available
             if hasattr(submission, 'link_flair_template_id'):
-                comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}"
+                comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
                 comment_body += f"\n**Original Flair Text:** {submission.link_flair_text}"
 
