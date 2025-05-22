@@ -2,8 +2,9 @@ import praw
 import requests
 import logging
 import config  # Import the config file with credentials
-import xml.etree.ElementTree as ET  # For parsing DASH manifest
+from reddownloader import RedDownloader
 from prawcore.exceptions import NotFound, Forbidden
+from datetime import datetime, timedelta
 
 # Set up logging to both file and console
 logging.basicConfig(
@@ -24,7 +25,7 @@ reddit = praw.Reddit(
     user_agent=config.source_user_agent
 )
 
-# Create a requests session to persist cookies
+# Create a requests session for HTML fallbacks
 session = requests.Session()
 session.headers.update({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -36,81 +37,24 @@ session.headers.update({
     'Origin': 'https://www.reddit.com'
 })
 
-# Function to get audio URL with fallbacks and manifest parsing
-def get_audio_url(submission_data, post_url):
+# Function to test RedDownloader
+def test_reddownloader(post_id, permalink, output_dir="/home/ubuntu/Reddit-UFOs_Archive/Dev/media"):
     try:
-        # Check if submission_data is a PRAW Submission object or a dictionary
-        is_submission = isinstance(submission_data, praw.models.Submission)
-        if is_submission:
-            media = submission_data.media if hasattr(submission_data, 'media') and submission_data.media else {}
-            reddit_video = media.get('reddit_video', {})
-        else:
-            media = submission_data.get('media', {})
-            reddit_video = media.get('reddit_video', {})
-
-        dash_url = reddit_video.get('dash_url')
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.reddit.com/'
-        }
-        if dash_url:
-            # Try DASH_audio.mp4
-            base_url = dash_url.rsplit('/', 1)[0]
-            audio_url = f"{base_url}/DASH_audio.mp4"
-            response = session.head(audio_url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                logging.info(f"Audio URL {audio_url} is accessible")
-                return audio_url
-            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}, headers: {response.headers}")
-
-            # Try audio.mp4 as fallback
-            audio_url = f"{base_url}/audio.mp4"
-            response = session.head(audio_url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                logging.info(f"Audio URL {audio_url} is accessible")
-                return audio_url
-            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}, headers: {response.headers}")
-
-            # Try parsing DASH manifest (DASHPlaylist.mpd)
-            try:
-                response = session.get(dash_url, headers=headers, timeout=5)
-                if response.status_code == 200:
-                    manifest = ET.fromstring(response.text)
-                    for adapt_set in manifest.findall(".//{urn:mpeg:dash:schema:mpd:2011}AdaptationSet[@contentType='audio']"):
-                        for rep in adapt_set.findall("{urn:mpeg:dash:schema:mpd:2011}Representation"):
-                            base_url_node = rep.find("{urn:mpeg:dash:schema:mpd:2011}BaseURL")
-                            if base_url_node is not None:
-                                audio_url = base_url.rsplit('/', 1)[0] + '/' + base_url_node.text
-                                response = session.head(audio_url, headers=headers, timeout=5)
-                                if response.status_code == 200:
-                                    logging.info(f"Audio URL {audio_url} from DASH manifest is accessible")
-                                    return audio_url
-                                logging.info(f"Audio URL {audio_url} from DASH manifest not accessible, status code: {response.status_code}, headers: {response.headers}")
-            except Exception as e:
-                logging.error(f"Error parsing DASH manifest for {dash_url}: {e}")
-
-        elif "v.redd.it" in post_url:
-            base_url = post_url.rsplit('/', 1)[0]
-            audio_url = f"{base_url}/DASH_audio.mp4"
-            response = session.head(audio_url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                logging.info(f"Audio URL {audio_url} is accessible")
-                return audio_url
-            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}, headers: {response.headers}")
-
-            # Try audio.mp4 as fallback
-            audio_url = f"{base_url}/audio.mp4"
-            response = session.head(audio_url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                logging.info(f"Audio URL {audio_url} is accessible")
-                return audio_url
-            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}, headers: {response.headers}")
-        return None
+        logging.info(f"Attempting to download media for post {post_id} using RedDownloader")
+        downloader = RedDownloader(
+            url=permalink,
+            output=output_dir,
+            filename=f"{post_id}",
+            quality="best"  # Try highest available quality
+        )
+        result = downloader.download()
+        logging.info(f"RedDownloader result for {post_id}: {result}")
+        return result
     except Exception as e:
-        logging.error(f"Error checking audio URL: {e}")
+        logging.error(f"RedDownloader error for post {post_id}: {e}")
         return None
 
-# Function to fetch post details via API, JSON, and HTML
+# Function to fetch post details via API, RedDownloader, JSON, and HTML
 def fetch_post_details(post_id):
     try:
         # Try fetching via PRAW
@@ -148,24 +92,12 @@ def fetch_post_details(post_id):
             logging.info(f"Fallback URL: {reddit_video.get('fallback_url')}")
             logging.info(f"DASH URL: {reddit_video.get('dash_url')}")
 
-            # Attempt to get audio URL
-            audio_url = get_audio_url(submission, submission.url)
-            logging.info(f"Derived Audio URL: {audio_url}")
-
-            # Try downloading audio with PRAW
-            if audio_url:
-                try:
-                    response = reddit.request('GET', audio_url, stream=True)
-                    logging.info(f"PRAW Audio Request Status: {response.status_code}, Headers: {response.headers}")
-                except Exception as e:
-                    logging.error(f"PRAW Audio Request Error: {e}")
-
-                # Try downloading audio with session
-                try:
-                    response = session.get(audio_url, stream=True, timeout=5)
-                    logging.info(f"Session Audio Request Status: {response.status_code}, Headers: {response.headers}")
-                except Exception as e:
-                    logging.error(f"Session Audio Request Error: {e}")
+            # Test RedDownloader for media download
+            result = test_reddownloader(post_id, f"https://www.reddit.com{submission.permalink}")
+            if result:
+                logging.info(f"Downloaded media for {post_id} to {result}")
+            else:
+                logging.info(f"Failed to download media for {post_id} with RedDownloader")
 
         # Check cross-post parent if applicable
         if hasattr(submission, 'crosspost_parent') and submission.crosspost_parent:
@@ -177,8 +109,8 @@ def fetch_post_details(post_id):
                 logging.info(f"Parent URL: {parent_submission.url}")
                 logging.info(f"Parent Media: {parent_submission.media}")
                 logging.info(f"Parent Removed: {parent_submission.removed_by_category}")
-                parent_audio_url = get_audio_url(parent_submission, parent_submission.url)
-                logging.info(f"Parent Derived Audio URL: {parent_audio_url}")
+                parent_result = test_reddownloader(parent_id, f"https://www.reddit.com{parent_submission.permalink}")
+                logging.info(f"Parent RedDownloader Result: {parent_result}")
             except Exception as e:
                 logging.error(f"Error fetching cross-post parent {parent_id}: {e}")
 
@@ -193,7 +125,7 @@ def fetch_post_details(post_id):
     try:
         logging.info(f"Attempting to fetch post {post_id} via authenticated JSON request")
         json_url = f"https://www.reddit.com/comments/{post_id}.json"
-        response = reddit.request('GET', json_url)
+        response = reddit.request(method='GET', path=json_url)
         if response.status_code == 200:
             post_data = response.json()[0]['data']['children'][0]['data']
             logging.info(f"Authenticated JSON Post Data: {post_data}")
@@ -208,18 +140,6 @@ def fetch_post_details(post_id):
             logging.info(f"Removed by Category: {post_data.get('removed_by_category')}")
             logging.info(f"Media: {post_data.get('media')}")
             logging.info(f"Cross Post Parent: {post_data.get('crosspost_parent', 'None')}")
-
-            # Check audio URL using JSON data
-            audio_url = get_audio_url(post_data, post_data.get('url'))
-            logging.info(f"Derived Audio URL from JSON: {audio_url}")
-
-            # Try downloading audio with PRAW
-            if audio_url:
-                try:
-                    response = reddit.request('GET', audio_url, stream=True)
-                    logging.info(f"PRAW Audio Request Status (JSON): {response.status_code}, Headers: {response.headers}")
-                except Exception as e:
-                    logging.error(f"PRAW Audio Request Error (JSON): {e}")
         else:
             logging.error(f"Authenticated JSON request failed for {json_url}. Status code: {response.status_code}, Headers: {response.headers}")
     except Exception as e:
@@ -229,7 +149,6 @@ def fetch_post_details(post_id):
     try:
         logging.info(f"Attempting to fetch post {post_id} HTML page")
         html_url = f"https://www.reddit.com/comments/{post_id}"
-        # Simulate a browser login by fetching the Reddit homepage first
         session.get('https://www.reddit.com', timeout=5)
         response = session.get(html_url, timeout=10)
         if response.status_code == 200:
