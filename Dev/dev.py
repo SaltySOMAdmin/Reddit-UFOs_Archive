@@ -39,7 +39,10 @@ PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 def merge_video_audio(video_path, audio_url, output_path='merged_video.mp4'):
     audio_path = 'media_audio.mp4'
     # Download audio
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+    'Referer': 'https://www.reddit.com/'  # or the actual submission URL if available
+    }
     response = requests.get(audio_url, stream=True, headers=headers)
     if response.status_code == 200:
         with open(audio_path, 'wb') as f:
