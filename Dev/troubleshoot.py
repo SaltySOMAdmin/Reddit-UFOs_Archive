@@ -4,6 +4,7 @@ import logging
 import config  # Import the config file with credentials
 import xml.etree.ElementTree as ET  # For parsing DASH manifest
 from prawcore.exceptions import NotFound, Forbidden
+import json
 
 # Set up logging to both file and console
 logging.basicConfig(
@@ -39,7 +40,7 @@ session.headers.update({
 # Function to get audio URL with fallbacks and manifest parsing
 def get_audio_url(submission_data, post_url):
     try:
-        reddit_video = submission_data.get('media', {}).get('reddit_video', {})
+        reddit_video = submission_data.get('media', {}).get('reddit_video', {}) if submission_data.get('media') else {}
         dash_url = reddit_video.get('dash_url')
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -102,7 +103,7 @@ def get_audio_url(submission_data, post_url):
         logging.error(f"Error checking audio URL: {e}")
         return None
 
-# Function to fetch post details via API and direct JSON
+# Function to fetch post details via API, JSON, and HTML
 def fetch_post_details(post_id):
     try:
         # Try fetching via PRAW
@@ -165,14 +166,20 @@ def fetch_post_details(post_id):
     except Exception as e:
         logging.error(f"PRAW Error fetching details for post {post_id}: {e}")
 
-    # Fallback: Try fetching post JSON directly
+    # Fallback: Try fetching post JSON with OAuth authentication
     try:
-        logging.info(f"Attempting to fetch post {post_id} via direct JSON request")
+        logging.info(f"Attempting to fetch post {post_id} via authenticated JSON request")
         json_url = f"https://www.reddit.com/comments/{post_id}.json"
-        response = session.get(json_url, timeout=10)
+        # Get OAuth token from PRAW's session
+        access_token = reddit.auth.token['access_token']
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'User-Agent': config.source_user_agent
+        }
+        response = session.get(json_url, headers=headers, timeout=10)
         if response.status_code == 200:
             post_data = response.json()[0]['data']['children'][0]['data']
-            logging.info(f"JSON Post Data: {post_data}")
+            logging.info(f"Authenticated JSON Post Data: {post_data}")
             logging.info(f"Title: {post_data.get('title')}")
             logging.info(f"Author: {post_data.get('author')}")
             logging.info(f"Flair: {post_data.get('link_flair_text')}")
@@ -191,14 +198,33 @@ def fetch_post_details(post_id):
             # Try downloading audio with session
             if audio_url:
                 try:
-                    response = session.get(audio_url, stream=True, timeout=5)
+                    response = session.get(audio_url, headers=headers, timeout=5)
                     logging.info(f"Session Audio Request Status (JSON): {response.status_code}, Headers: {response.headers}")
                 except Exception as e:
                     logging.error(f"Session Audio Request Error (JSON): {e}")
         else:
-            logging.error(f"JSON request failed for {json_url}. Status code: {response.status_code}, Headers: {response.headers}")
+            logging.error(f"Authenticated JSON request failed for {json_url}. Status code: {response.status_code}, Headers: {response.headers}")
     except Exception as e:
-        logging.error(f"JSON request error for post {post_id}: {e}")
+        logging.error(f"Authenticated JSON request error for post {post_id}: {e}")
+
+    # Fallback: Check HTML page for removal status
+    try:
+        logging.info(f"Attempting to fetch post {post_id} HTML page")
+        html_url = f"https://www.reddit.com/comments/{post_id}"
+        response = session.get(html_url, timeout=10)
+        if response.status_code == 200:
+            # Check for removal indicators in HTML
+            html_content = response.text.lower()
+            if "this post was deleted" in html_content or "this post has been removed" in html_content:
+                logging.info(f"HTML indicates post {post_id} is deleted or removed")
+            else:
+                logging.info(f"HTML page for {post_id} loaded successfully, post appears accessible")
+            # Log snippet of HTML for debugging
+            logging.info(f"HTML Snippet: {html_content[:500]}")
+        else:
+            logging.error(f"HTML request failed for {html_url}. Status code: {response.status_code}, Headers: {response.headers}")
+    except Exception as e:
+        logging.error(f"HTML request error for post {post_id}: {e}")
 
     # Check subreddit status
     try:
