@@ -36,20 +36,21 @@ archives_reddit = praw.Reddit(
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
 # Start Definitions
-def merge_video_audio(video_path, audio_url, reddit_post_url, output_path='merged_video.mp4'):
+def merge_video_audio(video_path, audio_url, reddit_post_url, output_path='merged_video.mp4', reddit_instance=source_reddit):
     audio_path = 'media_audio.mp4'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-        'Referer': reddit_post_url
-    }
-    response = requests.get(audio_url, stream=True, headers=headers)
-    if response.status_code == 200:
-        with open(audio_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=1024):
-                f.write(chunk)
-    else:
-        logging.error(f"Failed to download audio from {audio_url}. Status code: {response.status_code}")
-        return video_path  # fallback to video only
+    # Use PRAW's authenticated session for audio download to include OAuth tokens
+    try:
+        response = reddit_instance.request('GET', audio_url, stream=True)
+        if response.status_code == 200:
+            with open(audio_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=1024):
+                    f.write(chunk)
+        else:
+            logging.error(f"Failed to download audio from {audio_url}. Status code: {response.status_code}, Headers: {response.headers}")
+            return video_path  # Fallback to video only
+    except Exception as e:
+        logging.error(f"Request error for audio {audio_url}: {e}")
+        return video_path
 
     # Merge with ffmpeg (stream copy)
     try:
@@ -60,10 +61,10 @@ def merge_video_audio(video_path, audio_url, reddit_post_url, output_path='merge
             '-c', 'copy',
             '-movflags', '+faststart',
             output_path
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         if result.returncode != 0:
-            logging.error(f"ffmpeg error: {result.stderr.decode()}")
+            logging.error(f"ffmpeg error: {result.stderr}")
             return video_path
         return output_path
     except Exception as e:
@@ -80,23 +81,44 @@ def save_processed_post(post_id):
     with open(PROCESSED_FILE, "a") as file:
         file.write(post_id + "\n")
 
-def download_media(url, file_name):
+def download_media(url, file_name, retries=3, backoff_factor=2):
     if "preview.redd.it" in url:
         url = url.replace("preview.redd.it", "i.redd.it")
 
     headers = {
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.reddit.com/',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Origin': 'https://www.reddit.com'
     }
 
-    response = requests.get(url, stream=True, headers=headers)
-    if response.status_code == 200:
-        with open(file_name, 'wb') as out_file:
-            for chunk in response.iter_content(chunk_size=1024):
-                out_file.write(chunk)
-        return file_name
-    else:
-        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
-        return None
+    # Retry logic for handling rate limits and transient errors
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, stream=True, headers=headers, timeout=10)
+            if response.status_code == 200:
+                with open(file_name, 'wb') as out_file:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        out_file.write(chunk)
+                return file_name
+            elif response.status_code == 429:  # Too Many Requests
+                sleep_time = backoff_factor ** attempt
+                logging.warning(f"Rate limit hit for {url}. Retrying after {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                logging.error(f"Failed to download media from {url}. Status code: {response.status_code}, Headers: {response.headers}")
+                return None
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Request error for {url}: {e}")
+            if attempt < retries - 1:
+                sleep_time = backoff_factor ** attempt
+                time.sleep(sleep_time)
+            else:
+                return None
+    return None
 
 def split_text(text, max_length=10000):
     chunks = []
@@ -111,15 +133,32 @@ def split_text(text, max_length=10000):
 
 # Improved get_audio_url to reliably get audio from dash_url or fallback
 def get_audio_url(submission):
-    reddit_video = submission.media.get('reddit_video', {})
-    dash_url = reddit_video.get('dash_url')
-    if dash_url:
-        base_url = dash_url.rsplit('/', 1)[0]
-        return f"{base_url}/DASH_audio.mp4"
-    if "v.redd.it" in submission.url:
-        base_url = submission.url.rsplit('/', 1)[0]
-        return f"{base_url}/DASH_audio.mp4"
-    return None
+    try:
+        reddit_video = submission.media.get('reddit_video', {})
+        dash_url = reddit_video.get('dash_url')
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.reddit.com/'
+        }
+        if dash_url:
+            base_url = dash_url.rsplit('/', 1)[0]
+            audio_url = f"{base_url}/DASH_audio.mp4"
+            # Verify if the URL is accessible
+            response = requests.head(audio_url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                return audio_url
+            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
+        elif "v.redd.it" in submission.url:
+            base_url = submission.url.rsplit('/', 1)[0]
+            audio_url = f"{base_url}/DASH_audio.mp4"
+            response = requests.head(audio_url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                return audio_url
+            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
+        return None
+    except Exception as e:
+        logging.error(f"Error checking audio URL for submission {submission.id}: {e}")
+        return None
 
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
@@ -198,13 +237,27 @@ for submission in source_subreddit.new():
                     if has_audio and not is_gif:
                         audio_url = get_audio_url(submission)
                         if media_url and audio_url:
-                            merged_path = merge_video_audio(media_url, audio_url, submission.url)
-                            if os.path.exists(merged_path):
-                                logging.info(f"Successfully merged video and audio into {merged_path}")
-                                media_url = merged_path  # Replace original media_url with merged file
-                                merged_audio = True
-                            else:
-                                logging.error("Merged video not found after ffmpeg run")
+                            # Verify audio URL accessibility
+                            headers = {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Referer': 'https://www.reddit.com/'
+                            }
+                            try:
+                                response = requests.head(audio_url, headers=headers, timeout=5)
+                                if response.status_code == 200:
+                                    merged_path = merge_video_audio(media_url, audio_url, submission.url, reddit_instance=source_reddit)
+                                    if os.path.exists(merged_path):
+                                        logging.info(f"Successfully merged video and audio into {merged_path}")
+                                        media_url = merged_path
+                                        merged_audio = True
+                                    else:
+                                        logging.error("Merged video not found after ffmpeg run")
+                                else:
+                                    logging.info(f"Audio not accessible for {submission.id}: {audio_url}, status: {response.status_code}")
+                                    audio_url = None
+                            except requests.exceptions.RequestException as e:
+                                logging.error(f"Error checking audio for {submission.id}: {e}")
+                                audio_url = None
 
         new_post = None
         source_flair_text = submission.link_flair_text
