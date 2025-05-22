@@ -1,5 +1,14 @@
 import praw
+import requests
+import os
+import time
+import logging
+import sys
 import re
+from datetime import datetime, timedelta, timezone
+from prawcore.exceptions import RequestException, ResponseException
+from praw.exceptions import RedditAPIException
+import config  # Import the config file with credentials
 
 # === Step 1: Configure Reddit API ===
 # Either fill in your credentials here or make sure ~/.config/praw.ini has them under [bot1]
