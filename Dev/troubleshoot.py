@@ -4,11 +4,7 @@ import praw
 import requests
 import logging
 import config  # Import the config file with credentials
-try:
-    from reddownloader import RedDownloader
-except ImportError as e:
-    logging.error(f"Failed to import RedDownloader: {e}")
-    raise
+from RedDownloader import RedDownloader
 from prawcore.exceptions import NotFound, Forbidden
 
 # Set up logging to both file and console

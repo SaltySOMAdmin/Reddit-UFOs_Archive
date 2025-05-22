@@ -11,10 +11,24 @@
 ### Setup a Linux Host
 I'm using Ubuntu LTS on an Oracle Cloud VM. There are free-tiers available as of today. Google Compute and Amazon AWS are similar products. You can also roll your own host with an old PC or a Raspberry Pi. You'll need to know a bit of Linux CLI or you'll need to be ready to learn!  
 
-### Install necessary software prerequisites: 
-	sudo apt install python3
-	sudo apt install python3-praw
-	sudo apt install python3-prawcore
+## Install necessary software prerequisites: 
+
+1.  Install Python3
+
+		sudo apt install python3
+
+2.  Create a python virtual environment in a directory
+
+		/usr/bin/python3 -m venv /home/ubuntu/Reddit-UFOs_Archive
+
+3.  Use the virtual python3 environment
+
+		source /home/ubuntu/Reddit-UFOs_Archive/bin/activate
+
+4.  Install PIP Prereqs
+
+		pip3 install requests praw RedDownloader
+
 
 ### Create a dedicated Reddit account for your bot.
 A bot account needs to be created and Reddit API credentials need to be entered into config.py. You can use different accounts for the source and destination subreddits or you can use one account for both. Make note of your username and password. Open this page to 'create an app' https://ssl.reddit.com/prefs/apps/ make a note of the generated Client ID and Client Secret.
