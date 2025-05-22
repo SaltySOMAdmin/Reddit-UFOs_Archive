@@ -10,6 +10,7 @@ from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
 import subprocess
+import xml.etree.ElementTree as ET  # For parsing DASH manifest
 
 # Set up logging
 logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.INFO,
@@ -32,25 +33,52 @@ archives_reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
+# Create a requests session to persist cookies
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://www.reddit.com/',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Origin': 'https://www.reddit.com'
+})
+
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
 # Start Definitions
 def merge_video_audio(video_path, audio_url, reddit_post_url, output_path='merged_video.mp4', reddit_instance=source_reddit):
     audio_path = 'media_audio.mp4'
-    # Use PRAW's authenticated session for audio download to include OAuth tokens
+    # Try downloading audio with PRAW's authenticated session
     try:
+        logging.info(f"Attempting to download audio from {audio_url}")
         response = reddit_instance.request('GET', audio_url, stream=True)
         if response.status_code == 200:
             with open(audio_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=1024):
                     f.write(chunk)
+            logging.info(f"Successfully downloaded audio to {audio_path}")
         else:
             logging.error(f"Failed to download audio from {audio_url}. Status code: {response.status_code}, Headers: {response.headers}")
             return video_path  # Fallback to video only
     except Exception as e:
         logging.error(f"Request error for audio {audio_url}: {e}")
-        return video_path
+        # Fallback to session-based request
+        try:
+            response = session.get(audio_url, stream=True, timeout=10)
+            if response.status_code == 200:
+                with open(audio_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        f.write(chunk)
+                logging.info(f"Successfully downloaded audio to {audio_path} using session")
+            else:
+                logging.error(f"Session-based download failed for {audio_url}. Status code: {response.status_code}, Headers: {response.headers}")
+                return video_path
+        except Exception as e:
+            logging.error(f"Session-based request error for {audio_url}: {e}")
+            return video_path
 
     # Merge with ffmpeg (stream copy)
     try:
@@ -66,6 +94,7 @@ def merge_video_audio(video_path, audio_url, reddit_post_url, output_path='merge
         if result.returncode != 0:
             logging.error(f"ffmpeg error: {result.stderr}")
             return video_path
+        logging.info(f"Successfully merged video and audio into {output_path}")
         return output_path
     except Exception as e:
         logging.error(f"ffmpeg merge exception: {e}")
@@ -85,24 +114,14 @@ def download_media(url, file_name, retries=3, backoff_factor=2):
     if "preview.redd.it" in url:
         url = url.replace("preview.redd.it", "i.redd.it")
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.reddit.com/',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Origin': 'https://www.reddit.com'
-    }
-
-    # Retry logic for handling rate limits and transient errors
     for attempt in range(retries):
         try:
-            response = requests.get(url, stream=True, headers=headers, timeout=10)
+            response = session.get(url, stream=True, timeout=10)
             if response.status_code == 200:
                 with open(file_name, 'wb') as out_file:
                     for chunk in response.iter_content(chunk_size=1024):
                         out_file.write(chunk)
+                logging.info(f"Successfully downloaded media to {file_name}")
                 return file_name
             elif response.status_code == 429:  # Too Many Requests
                 sleep_time = backoff_factor ** attempt
@@ -131,7 +150,7 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
-# Improved get_audio_url to reliably get audio from dash_url or fallback
+# Improved get_audio_url to handle alternative audio URLs and DASH manifest
 def get_audio_url(submission):
     try:
         reddit_video = submission.media.get('reddit_video', {})
@@ -141,18 +160,55 @@ def get_audio_url(submission):
             'Referer': 'https://www.reddit.com/'
         }
         if dash_url:
+            # Try DASH_audio.mp4
             base_url = dash_url.rsplit('/', 1)[0]
             audio_url = f"{base_url}/DASH_audio.mp4"
-            # Verify if the URL is accessible
-            response = requests.head(audio_url, headers=headers, timeout=5)
+            response = session.head(audio_url, headers=headers, timeout=5)
             if response.status_code == 200:
+                logging.info(f"Audio URL {audio_url} is accessible")
                 return audio_url
             logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
+
+            # Try audio.mp4 as fallback
+            audio_url = f"{base_url}/audio.mp4"
+            response = session.head(audio_url, headers=headers, timeout=5)
+            if response.status_code == 200:
+ logging.info(f"Audio URL {audio_url} is accessible")
+                return audio_url
+            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
+
+            # Try parsing DASH manifest (DASHPlaylist.mpd)
+            try:
+                response = session.get(dash_url, headers=headers, timeout=5)
+                if response.status_code == 200:
+                    manifest = ET.fromstring(response.text)
+                    for adapt_set in manifest.findall(".//{urn:mpeg:dash:schema:mpd:2011}AdaptationSet[@contentType='audio']"):
+                        for rep in adapt_set.findall("{urn:mpeg:dash:schema:mpd:2011}Representation"):
+                            base_url_node = rep.find("{urn:mpeg:dash:schema:mpd:2011}BaseURL")
+                            if base_url_node is not None:
+                                audio_url = base_url.rsplit('/', 1)[0] + '/' + base_url_node.text
+                                response = session.head(audio_url, headers=headers, timeout=5)
+                                if response.status_code == 200:
+                                    logging.info(f"Audio URL {audio_url} from DASH manifest is accessible")
+                                    return audio_url
+                                logging.info(f"Audio URL {audio_url} from DASH manifest not accessible, status code: {response.status_code}")
+            except Exception as e:
+                logging.error(f"Error parsing DASH manifest for {dash_url}: {e}")
+
         elif "v.redd.it" in submission.url:
             base_url = submission.url.rsplit('/', 1)[0]
             audio_url = f"{base_url}/DASH_audio.mp4"
-            response = requests.head(audio_url, headers=headers, timeout=5)
+            response = session.head(audio_url, headers=headers, timeout=5)
             if response.status_code == 200:
+                logging.info(f"Audio URL {audio_url} is accessible")
+                return audio_url
+            logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
+
+            # Try audio.mp4 as fallback
+            audio_url = f"{base_url}/audio.mp4"
+            response = session.head(audio_url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                logging.info(f"Audio URL {audio_url} is accessible")
                 return audio_url
             logging.info(f"Audio URL {audio_url} not accessible, status code: {response.status_code}")
         return None
@@ -190,15 +246,22 @@ processed_posts = load_processed_posts()
 # Fetch new posts
 for submission in source_subreddit.new():
     try:
-        logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+        logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}, ID: {submission.id}, URL: {submission.url}, Media: {submission.media}")
         audio_url = None
         merged_audio = False  # Flag to track if audio was merged
 
         if submission.id in processed_posts:
+            logging.info(f"Skipping processed post: {submission.id}")
             continue
 
         post_time = datetime.fromtimestamp(submission.created_utc, timezone.utc)
         if post_time < cutoff_time:
+            logging.info(f"Skipping post {submission.id} outside time delta: {post_time}")
+            continue
+
+        # Skip deleted or removed posts
+        if submission.author is None or submission.removed_by_category:
+            logging.info(f"Skipping deleted/removed post: {submission.id}")
             continue
 
         title = submission.title
@@ -237,27 +300,13 @@ for submission in source_subreddit.new():
                     if has_audio and not is_gif:
                         audio_url = get_audio_url(submission)
                         if media_url and audio_url:
-                            # Verify audio URL accessibility
-                            headers = {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                'Referer': 'https://www.reddit.com/'
-                            }
-                            try:
-                                response = requests.head(audio_url, headers=headers, timeout=5)
-                                if response.status_code == 200:
-                                    merged_path = merge_video_audio(media_url, audio_url, submission.url, reddit_instance=source_reddit)
-                                    if os.path.exists(merged_path):
-                                        logging.info(f"Successfully merged video and audio into {merged_path}")
-                                        media_url = merged_path
-                                        merged_audio = True
-                                    else:
-                                        logging.error("Merged video not found after ffmpeg run")
-                                else:
-                                    logging.info(f"Audio not accessible for {submission.id}: {audio_url}, status: {response.status_code}")
-                                    audio_url = None
-                            except requests.exceptions.RequestException as e:
-                                logging.error(f"Error checking audio for {submission.id}: {e}")
-                                audio_url = None
+                            merged_path = merge_video_audio(media_url, audio_url, submission.url, reddit_instance=source_reddit)
+                            if os.path.exists(merged_path):
+                                logging.info(f"Successfully merged video and audio into {merged_path}")
+                                media_url = merged_path
+                                merged_audio = True
+                            else:
+                                logging.error("Merged video not found after ffmpeg run")
 
         new_post = None
         source_flair_text = submission.link_flair_text
