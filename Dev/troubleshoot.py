@@ -1,10 +1,15 @@
+import sys
+import os
 import praw
 import requests
 import logging
 import config  # Import the config file with credentials
-from reddownloader import RedDownloader
+try:
+    from reddownloader import RedDownloader
+except ImportError as e:
+    logging.error(f"Failed to import RedDownloader: {e}")
+    raise
 from prawcore.exceptions import NotFound, Forbidden
-from datetime import datetime, timedelta
 
 # Set up logging to both file and console
 logging.basicConfig(
@@ -15,6 +20,11 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# Log Python environment for debugging
+logging.info(f"Python executable: {sys.executable}")
+logging.info(f"Python version: {sys.version}")
+logging.info(f"Python path: {sys.path}")
 
 # Reddit API credentials
 reddit = praw.Reddit(
@@ -41,6 +51,8 @@ session.headers.update({
 def test_reddownloader(post_id, permalink, output_dir="/home/ubuntu/Reddit-UFOs_Archive/Dev/media"):
     try:
         logging.info(f"Attempting to download media for post {post_id} using RedDownloader")
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
         downloader = RedDownloader(
             url=permalink,
             output=output_dir,
@@ -124,10 +136,12 @@ def fetch_post_details(post_id):
     # Fallback: Try fetching post JSON using PRAW's authenticated request
     try:
         logging.info(f"Attempting to fetch post {post_id} via authenticated JSON request")
-        json_url = f"https://www.reddit.com/comments/{post_id}.json"
+        json_url = f"/comments/{post_id}.json"  # Use relative path for PRAW
         response = reddit.request(method='GET', path=json_url)
-        if response.status_code == 200:
-            post_data = response.json()[0]['data']['children'][0]['data']
+        if isinstance(response, dict) and 'json' in response:
+            response = response['json']
+        if isinstance(response, list) and len(response) > 0:
+            post_data = response[0]['data']['children'][0]['data']
             logging.info(f"Authenticated JSON Post Data: {post_data}")
             logging.info(f"Title: {post_data.get('title')}")
             logging.info(f"Author: {post_data.get('author')}")
@@ -141,7 +155,7 @@ def fetch_post_details(post_id):
             logging.info(f"Media: {post_data.get('media')}")
             logging.info(f"Cross Post Parent: {post_data.get('crosspost_parent', 'None')}")
         else:
-            logging.error(f"Authenticated JSON request failed for {json_url}. Status code: {response.status_code}, Headers: {response.headers}")
+            logging.error(f"Authenticated JSON request failed for {json_url}. Response: {response}")
     except Exception as e:
         logging.error(f"Authenticated JSON request error for post {post_id}: {e}")
 
