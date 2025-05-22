@@ -107,9 +107,21 @@ def split_text(text, max_length=10000):
     return chunks
 
 def get_audio_url(video_url):
-    if "v.redd.it" in video_url:
-        base_url = video_url.rsplit('/', 1)[0]
-        return f"{base_url}/DASH_audio.mp4"
+    if "v.redd.it" not in video_url:
+        return None
+
+    base_url = video_url.rsplit('/', 1)[0]
+    audio_url = f"{base_url}/DASH_audio.mp4"
+
+    # Check if the audio file actually exists
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    try:
+        response = requests.head(audio_url, headers=headers)
+        if response.status_code == 200 and int(response.headers.get('Content-Length', 0)) > 1000:
+            return audio_url
+    except Exception as e:
+        logging.error(f"Error verifying audio URL: {audio_url} -> {e}")
+
     return None
 
 # Subreddits
