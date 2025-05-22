@@ -4,7 +4,6 @@ import logging
 import config  # Import the config file with credentials
 import xml.etree.ElementTree as ET  # For parsing DASH manifest
 from prawcore.exceptions import NotFound, Forbidden
-import json
 
 # Set up logging to both file and console
 logging.basicConfig(
@@ -121,6 +120,7 @@ def fetch_post_details(post_id):
         logging.info(f"Is Video: {submission.is_video}")
         logging.info(f"Removed by Category: {submission.removed_by_category}")
         logging.info(f"Media: {submission.media}")
+        logging.info(f"Cross Post Parent: {submission.crosspost_parent if hasattr(submission, 'crosspost_parent') else 'None'}")
 
         # Check for gallery data
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
@@ -154,10 +154,27 @@ def fetch_post_details(post_id):
 
                 # Try downloading audio with session
                 try:
-                    response = session.get(audio_url, stream=True, timeout=5)
+                    access_token = reddit.auth.token['access_token']
+                    headers = {'Authorization': f'Bearer {access_token}', 'User-Agent': config.source_user_agent}
+                    response = session.get(audio_url, headers=headers, timeout=5)
                     logging.info(f"Session Audio Request Status: {response.status_code}, Headers: {response.headers}")
                 except Exception as e:
                     logging.error(f"Session Audio Request Error: {e}")
+
+        # Check cross-post parent if applicable
+        if hasattr(submission, 'crosspost_parent') and submission.crosspost_parent:
+            parent_id = submission.crosspost_parent.split('_')[1]
+            logging.info(f"Fetching cross-post parent {parent_id}")
+            try:
+                parent_submission = reddit.submission(id=parent_id)
+                logging.info(f"Parent Title: {parent_submission.title}")
+                logging.info(f"Parent URL: {parent_submission.url}")
+                logging.info(f"Parent Media: {parent_submission.media}")
+                logging.info(f"Parent Removed: {parent_submission.removed_by_category}")
+                parent_audio_url = get_audio_url(parent_submission, parent_submission.url)
+                logging.info(f"Parent Derived Audio URL: {parent_audio_url}")
+            except Exception as e:
+                logging.error(f"Error fetching cross-post parent {parent_id}: {e}")
 
     except NotFound:
         logging.error(f"PRAW returned 404 for post {post_id}. Post may be deleted or inaccessible.")
@@ -170,7 +187,6 @@ def fetch_post_details(post_id):
     try:
         logging.info(f"Attempting to fetch post {post_id} via authenticated JSON request")
         json_url = f"https://www.reddit.com/comments/{post_id}.json"
-        # Get OAuth token from PRAW's session
         access_token = reddit.auth.token['access_token']
         headers = {
             'Authorization': f'Bearer {access_token}',
@@ -190,6 +206,7 @@ def fetch_post_details(post_id):
             logging.info(f"Is Video: {post_data.get('is_video')}")
             logging.info(f"Removed by Category: {post_data.get('removed_by_category')}")
             logging.info(f"Media: {post_data.get('media')}")
+            logging.info(f"Cross Post Parent: {post_data.get('crosspost_parent', 'None')}")
 
             # Check audio URL using JSON data
             audio_url = get_audio_url(post_data, post_data.get('url'))
@@ -213,13 +230,11 @@ def fetch_post_details(post_id):
         html_url = f"https://www.reddit.com/comments/{post_id}"
         response = session.get(html_url, timeout=10)
         if response.status_code == 200:
-            # Check for removal indicators in HTML
             html_content = response.text.lower()
             if "this post was deleted" in html_content or "this post has been removed" in html_content:
                 logging.info(f"HTML indicates post {post_id} is deleted or removed")
             else:
                 logging.info(f"HTML page for {post_id} loaded successfully, post appears accessible")
-            # Log snippet of HTML for debugging
             logging.info(f"HTML Snippet: {html_content[:500]}")
         else:
             logging.error(f"HTML request failed for {html_url}. Status code: {response.status_code}, Headers: {response.headers}")
@@ -235,5 +250,5 @@ def fetch_post_details(post_id):
 
 # Main execution
 if __name__ == "__main__":
-    post_id = "oonmcr62jd2f1"
+    post_id = "1ksxnxv"  # Correct post ID
     fetch_post_details(post_id)
