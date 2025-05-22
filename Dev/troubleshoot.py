@@ -134,7 +134,7 @@ def fetch_post_details(post_id):
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
             logging.info(f"Gallery Data: {submission.gallery_data}")
             logging.info(f"Media Metadata: {submission.media_metadata}")
-            for item in submission.gallery_data.get('items', [] creeper):
+            for item in submission.gallery_data.get('items', []):
                 media_id = item.get('media_id')
                 meta = submission.media_metadata.get(media_id, {})
                 logging.info(f"Gallery Item Media ID: {media_id}, Metadata: {meta}")
@@ -160,12 +160,27 @@ def fetch_post_details(post_id):
                 except Exception as e:
                     logging.error(f"PRAW Audio Request Error: {e}")
 
-                # Try downloading audio with session (using PRAW's OAuth)
+                # Try downloading audio with session
                 try:
                     response = session.get(audio_url, stream=True, timeout=5)
                     logging.info(f"Session Audio Request Status: {response.status_code}, Headers: {response.headers}")
                 except Exception as e:
                     logging.error(f"Session Audio Request Error: {e}")
+
+        # Check cross-post parent if applicable
+        if hasattr(submission, 'crosspost_parent') and submission.crosspost_parent:
+            parent_id = submission.crosspost_parent.split('_')[1]
+            logging.info(f"Fetching cross-post parent {parent_id}")
+            try:
+                parent_submission = reddit.submission(id=parent_id)
+                logging.info(f"Parent Title: {parent_submission.title}")
+                logging.info(f"Parent URL: {parent_submission.url}")
+                logging.info(f"Parent Media: {parent_submission.media}")
+                logging.info(f"Parent Removed: {parent_submission.removed_by_category}")
+                parent_audio_url = get_audio_url(parent_submission, parent_submission.url)
+                logging.info(f"Parent Derived Audio URL: {parent_audio_url}")
+            except Exception as e:
+                logging.error(f"Error fetching cross-post parent {parent_id}: {e}")
 
     except NotFound:
         logging.error(f"PRAW returned 404 for post {post_id}. Post may be deleted or inaccessible.")
@@ -238,5 +253,7 @@ def fetch_post_details(post_id):
 
 # Main execution
 if __name__ == "__main__":
-    post_id = "1ksxnxv"
-    fetch_post_details(post_id)
+    post_ids = ["1ksxnxv", "1ksr66d"]  # Test both posts
+    for post_id in post_ids:
+        logging.info(f"Processing post {post_id}")
+        fetch_post_details(post_id)
