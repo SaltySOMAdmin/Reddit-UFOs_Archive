@@ -107,13 +107,18 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
-def get_audio_url(video_url):
-    if "v.redd.it" in video_url:
-        base_url = video_url.rsplit('/', 1)[0]
+# Improved get_audio_url to reliably get audio from dash_url or fallback
+def get_audio_url(submission):
+    reddit_video = submission.media.get('reddit_video', {})
+    dash_url = reddit_video.get('dash_url')
+    if dash_url:
+        base_url = dash_url.rsplit('/', 1)[0]
+        return f"{base_url}/DASH_audio.mp4"
+    if "v.redd.it" in submission.url:
+        base_url = submission.url.rsplit('/', 1)[0]
         return f"{base_url}/DASH_audio.mp4"
     return None
 
-    
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
 destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
@@ -146,6 +151,7 @@ for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
         audio_url = None
+        merged_audio = False  # Flag to track if audio was merged
 
         if submission.id in processed_posts:
             continue
@@ -188,12 +194,15 @@ for submission in source_subreddit.new():
                     original_media_url = video_url
 
                     if has_audio and not is_gif:
-                        audio_url = get_audio_url(submission.url)
+                        audio_url = get_audio_url(submission)
                         if media_url and audio_url:
                             merged_path = merge_video_audio(media_url, audio_url)
                             if os.path.exists(merged_path):
+                                logging.info(f"Successfully merged video and audio into {merged_path}")
                                 media_url = merged_path  # Replace original media_url with merged file
-
+                                merged_audio = True
+                            else:
+                                logging.error("Merged video not found after ffmpeg run")
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -228,7 +237,8 @@ for submission in source_subreddit.new():
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
-            if audio_url:
+            # Only add audio link if audio was NOT merged into video
+            if audio_url and not merged_audio:
                 comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\n**Original post text:** {submission.selftext}"
