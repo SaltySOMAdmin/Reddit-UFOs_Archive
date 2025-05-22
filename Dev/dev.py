@@ -8,12 +8,11 @@ import re
 from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
-from RedDownloader import RedDownloader  # <-- RedDownloader import
-import moviepy
+import yt_dlp
 import config  # Import the config file with credentials
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR,
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -54,7 +53,10 @@ def download_media(url, file_name):
     if "preview.redd.it" in url:
         url = url.replace("preview.redd.it", "i.redd.it")
 
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0'
+    }
+
     response = requests.get(url, stream=True, headers=headers)
     if response.status_code == 200:
         with open(file_name, 'wb') as out_file:
@@ -88,6 +90,23 @@ def parse_time_delta(arg):
         return timedelta(minutes=value)
     elif unit == 'h':
         return timedelta(hours=value)
+
+def download_reddit_video_with_audio(post_url, output_path):
+    ydl_opts = {
+        'format': 'bv+ba/b',
+        'outtmpl': output_path,
+        'merge_output_format': 'mp4',
+        'quiet': True,
+        'no_warnings': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([post_url])
+        return output_path
+    except Exception as e:
+        logging.error(f"yt-dlp failed for {post_url}: {str(e)}")
+        return None
 
 # Get time delta from command-line argument
 time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
@@ -127,23 +146,21 @@ for submission in source_subreddit.new():
                     downloaded = download_media(img_url, file_name)
                     if downloaded:
                         gallery_images.append(downloaded)
-
         elif not is_self_post:
             if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
-            elif 'v.redd.it' in submission.url:
-                try:
-                    video_data = Downloader.get(submission.url)
-                    red_filename = f"{submission.id}_combined.mp4"
-                    video_data.download(path='.', filename=red_filename)
-                    media_url = red_filename
-                    original_media_url = submission.url
-                except Exception as e:
-                    logging.error(f"RedDownloader failed: {e}")
-                    media_url = None
-                    original_media_url = submission.url
+            elif 'v.redd.it' in submission.url and submission.media:
+                reddit_video = submission.media.get('reddit_video', {})
+                video_url = reddit_video.get('fallback_url')
+                is_gif = reddit_video.get('is_gif', False)
+
+                if video_url and not is_gif:
+                    media_filename = f"{submission.id}.mp4"
+                    post_url = f"https://www.reddit.com{submission.permalink}"
+                    media_url = download_reddit_video_with_audio(post_url, media_filename)
+                    original_media_url = video_url
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -198,7 +215,7 @@ for submission in source_subreddit.new():
         time.sleep(10)
 
     except (RequestException, ResponseException, RedditAPIException) as ex:
-        logging.error(f"Reddit API error for post {submission.id}: {str(ex)}")
+        logging.error(f"Error for post {submission.id}: {str(ex)}")
     except Exception as e:
         logging.error(f"General error for post {submission.id}: {str(e)}")
 
