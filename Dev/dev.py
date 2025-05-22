@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 from RedDownloader import RedDownloader  # <-- RedDownloader import
-from RedDownloader import moviepy
+import moviepy
 import config  # Import the config file with credentials
 
 # Set up logging
