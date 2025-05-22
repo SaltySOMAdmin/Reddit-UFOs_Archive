@@ -31,6 +31,10 @@ archives_reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
+# Subreddits
+source_subreddit = source_reddit.subreddit('ufos')
+destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
+
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
@@ -116,9 +120,7 @@ def parse_time_delta(arg):
 # Get time delta from command-line argument
 time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
 
-# Subreddits
-source_subreddit = source_reddit.subreddit('ufos')
-destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
+
 
 # Time filtering
 current_time = datetime.now(timezone.utc)
