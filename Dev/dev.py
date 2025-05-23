@@ -175,20 +175,20 @@ for submission in source_subreddit.new():
                         audio_downloaded = download_media(audio_url, 'media_audio.mp4')
 
                         # Combine using ffmpeg if both downloaded
-                        if video_downloaded and audio_downloaded:
-                            cmd = [
-                                "ffmpeg", "-y",
-                                "-i", video_file,
-                                "-i", audio_file,
-                                "-c", "copy",
-                                merged_file
-                            ]
-                            try:
-                                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
-                                media_url = merged_file
-                            except subprocess.CalledProcessError as e:
-                                logging.error(f"FFmpeg failed to merge video/audio: {e}")
-                                media_url = video_file
+                        cmd = [
+                            "ffmpeg", "-loglevel", "error", "-y",
+                            "-i", video_file,
+                            "-i", audio_file,
+                            "-c", "copy",
+                            merged_file
+                        ]
+
+                        try:
+                            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            media_url = merged_file
+                        except subprocess.CalledProcessError as e:
+                            logging.error(f"FFmpeg failed to merge video/audio with return code {e.returncode}")
+                            media_url = video_file
 
                         else:
                             media_url = video_file
