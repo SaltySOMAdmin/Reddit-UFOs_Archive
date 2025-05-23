@@ -8,11 +8,10 @@ import re
 from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
-import yt_dlp
 import config  # Import the config file with credentials
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR,
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -39,6 +38,8 @@ destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
+MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/Dev/temp_media"
+
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
         with open(PROCESSED_FILE, "r") as file:
@@ -56,13 +57,13 @@ def download_media(url, file_name):
     headers = {
         'User-Agent': 'Mozilla/5.0'
     }
-
+    full_path = os.path.join(MEDIA_DOWNLOAD_DIR, file_name)
     response = requests.get(url, stream=True, headers=headers)
     if response.status_code == 200:
-        with open(file_name, 'wb') as out_file:
+        with open(full_path, 'wb') as out_file:
             for chunk in response.iter_content(chunk_size=1024):
                 out_file.write(chunk)
-        return file_name
+        return full_path
     else:
         logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
         return None
@@ -78,6 +79,20 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
+def get_audio_url(video_url):
+    """
+    Extract the video ID from the video_url and construct the proper audio URL with bitrate.
+    Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
+    Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
+    """
+    match = re.search(r"v\.redd\.it/([^/]+)/", video_url)
+    if match:
+        video_id = match.group(1)
+        return f"https://v.redd.it/{video_id}/DASH_AUDIO_128.mp4"
+    return None
+
+
+# Parse time delta from command-line argument
 def parse_time_delta(arg):
     if not arg:
         return timedelta(minutes=28)  # Default to 28 minutes if no argument
@@ -90,23 +105,6 @@ def parse_time_delta(arg):
         return timedelta(minutes=value)
     elif unit == 'h':
         return timedelta(hours=value)
-
-def download_reddit_video_with_audio(post_url, output_path):
-    ydl_opts = {
-        'format': 'bv+ba/b',
-        'outtmpl': output_path,
-        'merge_output_format': 'mp4',
-        'quiet': True,
-        'no_warnings': True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([post_url])
-        return output_path
-    except Exception as e:
-        logging.error(f"yt-dlp failed for {post_url}: {str(e)}")
-        return None
 
 # Get time delta from command-line argument
 time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
@@ -121,6 +119,7 @@ processed_posts = load_processed_posts()
 for submission in source_subreddit.new():
     try:
         logging.info(f"Processing submission: {submission.title}, Flair: {submission.link_flair_text}, Created: {submission.created_utc}")
+        audio_url = None
 
         if submission.id in processed_posts:
             continue
@@ -154,13 +153,17 @@ for submission in source_subreddit.new():
             elif 'v.redd.it' in submission.url and submission.media:
                 reddit_video = submission.media.get('reddit_video', {})
                 video_url = reddit_video.get('fallback_url')
+                has_audio = reddit_video.get('has_audio', False)
                 is_gif = reddit_video.get('is_gif', False)
 
-                if video_url and not is_gif:
-                    media_filename = f"{submission.id}.mp4"
-                    post_url = f"https://www.reddit.com{submission.permalink}"
-                    media_url = download_reddit_video_with_audio(post_url, media_filename)
+                if video_url:
+                    file_name = 'media_video.mp4'
+                    media_url = download_media(video_url, file_name)
                     original_media_url = video_url
+
+                    # Include audio only if present (for non-gif videos)
+                    if has_audio and not is_gif:
+                        audio_url = get_audio_url(submission.url)
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -195,9 +198,12 @@ for submission in source_subreddit.new():
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
+            if audio_url:
+                comment_body += f"\n\n**Direct link to Audio:** [Audio Here]({audio_url})"
             if submission.selftext:
                 comment_body += f"\n\n**Original post text:** {submission.selftext}"
-                comment_body += "\n\n---\n\n"
+                comment_body += "\n\n---\n\n"                
+                # Add flair ID if available
             if hasattr(submission, 'link_flair_template_id'):
                 comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
