@@ -27,7 +27,7 @@ I'm using Ubuntu LTS on an Oracle Cloud VM. There are free-tiers available as of
 
 4.  Install PIP Prereqs
 
-		pip3 install requests praw
+		pip3 install requests praw ffmpeg
 
 
 ### Create a dedicated Reddit account for your bot.
