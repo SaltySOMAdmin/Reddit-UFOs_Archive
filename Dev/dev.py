@@ -164,7 +164,7 @@ for submission in source_subreddit.new():
 
                     # Include audio only if present (for non-gif videos)
                     if has_audio and not is_gif:
-                        audio_url = get_audio_url(submission.url)
+                        audio_url = get_audio_url(video_url)
 
         new_post = None
         source_flair_text = submission.link_flair_text
