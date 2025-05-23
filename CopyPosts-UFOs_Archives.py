@@ -177,17 +177,18 @@ for submission in source_subreddit.new():
                         # Combine using ffmpeg if both downloaded
                         if video_downloaded and audio_downloaded:
                             cmd = [
-                                "ffmpeg", "-y",
+                                "ffmpeg", "-loglevel", "error", "-y",
                                 "-i", video_file,
                                 "-i", audio_file,
                                 "-c", "copy",
                                 merged_file
                             ]
+
                             try:
-                                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
+                                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                                 media_url = merged_file
                             except subprocess.CalledProcessError as e:
-                                logging.error(f"FFmpeg failed to merge video/audio: {e}")
+                                logging.error(f"FFmpeg failed to merge video/audio with return code {e.returncode}")
                                 media_url = video_file
 
                         else:
@@ -227,7 +228,7 @@ for submission in source_subreddit.new():
                 logging.info(f"No matching flair found for: {source_flair_text}")
 
         if new_post:
-            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
+            comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
