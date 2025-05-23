@@ -38,8 +38,6 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/processed_posts.txt"
 
-MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/temp_media"
-
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
         with open(PROCESSED_FILE, "r") as file:
@@ -57,13 +55,13 @@ def download_media(url, file_name):
     headers = {
         'User-Agent': 'Mozilla/5.0'
     }
-    full_path = os.path.join(MEDIA_DOWNLOAD_DIR, file_name)
+
     response = requests.get(url, stream=True, headers=headers)
     if response.status_code == 200:
-        with open(full_path, 'wb') as out_file:
+        with open(file_name, 'wb') as out_file:
             for chunk in response.iter_content(chunk_size=1024):
                 out_file.write(chunk)
-        return full_path
+        return file_name
     else:
         logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
         return None
