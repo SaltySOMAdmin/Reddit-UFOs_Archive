@@ -194,7 +194,7 @@ for submission in source_subreddit.new():
                 logging.info(f"No matching flair found for: {source_flair_text}")
 
         if new_post:
-            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
+            comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
