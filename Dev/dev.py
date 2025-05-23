@@ -86,7 +86,7 @@ def get_audio_url(video_url):
     Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
     Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
     """
-    match = re.search(r"v\.redd\.it/([^/]+)/", video_url)
+    match = re.search(r"v\.redd\.it/([^/]+)", video_url)
     if match:
         video_id = match.group(1)
         return f"https://v.redd.it/{video_id}/DASH_AUDIO_128.mp4"
