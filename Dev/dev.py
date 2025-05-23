@@ -38,6 +38,7 @@ destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
+# Specify temp media location
 MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/Dev/temp_media"
 os.makedirs(MEDIA_DOWNLOAD_DIR, exist_ok=True)
 
@@ -157,14 +158,31 @@ for submission in source_subreddit.new():
                 has_audio = reddit_video.get('has_audio', False)
                 is_gif = reddit_video.get('is_gif', False)
 
-                if video_url:
-                    file_name = 'media_video.mp4'
-                    media_url = download_media(video_url, file_name)
-                    original_media_url = video_url
+            if video_url:
+                video_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_video.mp4')
+                audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_audio.mp4')
+                merged_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'merged_video.mp4')
 
-                    # Include audio only if present (for non-gif videos)
-                    if has_audio and not is_gif:
-                        audio_url = get_audio_url(video_url)
+                video_downloaded = download_media(video_url, 'media_video.mp4')
+                original_media_url = video_url
+
+                if has_audio and not is_gif:
+                    audio_url = get_audio_url(video_url)
+                    if audio_url:
+                        audio_downloaded = download_media(audio_url, 'media_audio.mp4')
+
+                        # Combine using ffmpeg if both downloaded
+                        if video_downloaded and audio_downloaded:
+                            cmd = f"ffmpeg -y -i \"{video_file}\" -i \"{audio_file}\" -c copy \"{merged_file}\""
+                            os.system(cmd)
+                            media_url = merged_file
+                        else:
+                            media_url = video_file
+                    else:
+                        media_url = video_file
+                else:
+                    media_url = video_file
+
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -231,3 +249,7 @@ for submission in source_subreddit.new():
             os.remove(img)
     if media_url and os.path.exists(media_url):
         os.remove(media_url)
+    if os.path.exists(audio_file):
+        os.remove(audio_file)
+    if os.path.exists(merged_file):
+        os.remove(merged_file)
