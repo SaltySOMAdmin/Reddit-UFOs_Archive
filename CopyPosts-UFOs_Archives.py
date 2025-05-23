@@ -38,7 +38,9 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/processed_posts.txt"
 
+# Specify temp media location
 MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/temp_media"
+os.makedirs(MEDIA_DOWNLOAD_DIR, exist_ok=True)
 
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
@@ -80,10 +82,17 @@ def split_text(text, max_length=10000):
     return chunks
 
 def get_audio_url(video_url):
-    if "v.redd.it" in video_url:
-        base_url = video_url.rsplit('/', 1)[0]
-        return f"{base_url}/DASH_audio.mp4"
+    """
+    Extract the video ID from the video_url and construct the proper audio URL with bitrate.
+    Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
+    Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
+    """
+    match = re.search(r"v\.redd\.it/([^/]+)", video_url)
+    if match:
+        video_id = match.group(1)
+        return f"https://v.redd.it/{video_id}/DASH_AUDIO_128.mp4"
     return None
+
 
 # Parse time delta from command-line argument
 def parse_time_delta(arg):
@@ -156,7 +165,7 @@ for submission in source_subreddit.new():
 
                     # Include audio only if present (for non-gif videos)
                     if has_audio and not is_gif:
-                        audio_url = get_audio_url(submission.url)
+                        audio_url = get_audio_url(video_url)
 
         new_post = None
         source_flair_text = submission.link_flair_text
@@ -187,7 +196,7 @@ for submission in source_subreddit.new():
                 logging.info(f"No matching flair found for: {source_flair_text}")
 
         if new_post:
-            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
+            comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
