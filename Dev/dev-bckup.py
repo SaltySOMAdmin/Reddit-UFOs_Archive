@@ -9,9 +9,6 @@ from datetime import datetime, timedelta, timezone
 from prawcore.exceptions import RequestException, ResponseException
 from praw.exceptions import RedditAPIException
 import config  # Import the config file with credentials
-import subprocess
-import os
-import shutil
 
 # Set up logging
 logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/Dev/error_log.txt', level=logging.ERROR, 
@@ -176,20 +173,9 @@ for submission in source_subreddit.new():
 
                         # Combine using ffmpeg if both downloaded
                         if video_downloaded and audio_downloaded:
-                            cmd = [
-                                "ffmpeg", "-y",
-                                "-i", video_file,
-                                "-i", audio_file,
-                                "-c", "copy",
-                                merged_file
-                            ]
-                            try:
-                                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
-                                media_url = merged_file
-                            except subprocess.CalledProcessError as e:
-                                logging.error(f"FFmpeg failed to merge video/audio: {e}")
-                                media_url = video_file
-
+                            cmd = f"ffmpeg -y -i \"{video_file}\" -i \"{audio_file}\" -c copy \"{merged_file}\""
+                            os.system(cmd)
+                            media_url = merged_file
                         else:
                             media_url = video_file
                     else:
