@@ -39,6 +39,7 @@ destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 
 MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/Dev/temp_media"
+os.makedirs(MEDIA_DOWNLOAD_DIR, exist_ok=True)
 
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
