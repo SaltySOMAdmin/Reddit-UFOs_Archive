@@ -45,6 +45,7 @@ PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/Dev/processed_posts.txt"
 MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/Dev/temp_media"
 os.makedirs(MEDIA_DOWNLOAD_DIR, exist_ok=True)
 
+# Start definitions
 def load_processed_posts():
     if os.path.exists(PROCESSED_FILE):
         with open(PROCESSED_FILE, "r") as file:
@@ -120,7 +121,8 @@ cutoff_time = current_time - time_delta
 
 processed_posts = load_processed_posts()
 
-# Fetch new posts
+# Start of script - Fetch new posts
+print(f"Starting Script. {current_time}")
 for submission in source_subreddit.new():
     video_url = None
     audio_url = None
@@ -143,7 +145,8 @@ for submission in source_subreddit.new():
         media_url = None
         original_media_url = None
         gallery_images = []
-
+        
+        # If image gallery
         if hasattr(submission, 'is_gallery') and submission.is_gallery:
             for item in submission.gallery_data['items']:
                 media_id = item['media_id']
@@ -155,6 +158,7 @@ for submission in source_subreddit.new():
                     downloaded = download_media(img_url, file_name)
                     if downloaded:
                         gallery_images.append(downloaded)
+        # If not self post check for image or video
         elif not is_self_post:
             if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 file_name = submission.url.split('/')[-1]
@@ -165,7 +169,6 @@ for submission in source_subreddit.new():
                 video_url = reddit_video.get('fallback_url')
                 has_audio = reddit_video.get('has_audio', False)
                 is_gif = reddit_video.get('is_gif', False)
-
             if video_url:
                 video_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_video.mp4')
                 audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_audio.mp4')
@@ -207,6 +210,7 @@ for submission in source_subreddit.new():
         new_post = None
         source_flair_text = submission.link_flair_text
 
+        # If self post
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
         elif gallery_images:
@@ -219,7 +223,7 @@ for submission in source_subreddit.new():
                 new_post = destination_subreddit.submit_video(title, video_path=media_url)
         else:
             new_post = destination_subreddit.submit(title, url=submission.url)
-
+        # Set post flair from source
         if new_post and source_flair_text:
             matching_flair = None
             for flair in destination_subreddit.flair.link_templates:
@@ -231,9 +235,9 @@ for submission in source_subreddit.new():
                 logging.info(f"Applied flair: {source_flair_text} to post {new_post.id}")
             else:
                 logging.info(f"No matching flair found for: {source_flair_text}")
-
+        # Build comment with post information
         if new_post:
-            comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
+            comment_body = f"**Original post by u/{submission.author}:** [Here](https://www.reddit.com{submission.permalink})\n"
             comment_body += f"\n**Original Post ID:** {submission.id}"
             if original_media_url:
                 comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"
@@ -242,12 +246,11 @@ for submission in source_subreddit.new():
             if submission.selftext:
                 comment_body += f"\n\n**Original post text:** {submission.selftext}"
                 comment_body += "\n\n---\n\n"                
-                # Add flair ID if available
             if hasattr(submission, 'link_flair_template_id'):
                 comment_body += f"\n\n**Original Flair ID:** {submission.link_flair_template_id}\n"
             if submission.link_flair_text:
                 comment_body += f"\n**Original Flair Text:** {submission.link_flair_text}"
-
+            # Split comment if greater than 10,000 characters - Reddit limit
             if len(comment_body) > 10000:
                 for chunk in split_text(comment_body):
                     new_post.reply(chunk)
@@ -257,13 +260,14 @@ for submission in source_subreddit.new():
 
         save_processed_post(submission.id)
         print(f"Copied post {submission.id}: {submission.title}")
+        # Respect Reddit API Limit
         time.sleep(10)
-
+    # Log exceptions
     except (RequestException, ResponseException, RedditAPIException) as ex:
         logging.error(f"Error for post {submission.id}: {str(ex)}")
     except Exception as e:
         logging.error(f"General error for post {submission.id}: {str(e)}")
-
+    # Cleanup downloaded media
     for img in gallery_images:
         if os.path.exists(img):
             os.remove(img)
