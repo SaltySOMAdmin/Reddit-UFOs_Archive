@@ -41,6 +41,9 @@ destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 # File to store processed post IDs
 PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/processed_posts.txt"
 
+# Max IDs to store in previous file
+MAX_PROCESSED_IDS = 2000
+
 # Specify temp media location
 MEDIA_DOWNLOAD_DIR = "/home/ubuntu/Reddit-UFOs_Archive/temp_media"
 os.makedirs(MEDIA_DOWNLOAD_DIR, exist_ok=True)
@@ -281,17 +284,24 @@ for submission in source_subreddit.new():
         
 # Append new post IDs and trim oldest lines
 if newly_copied_post_ids:
-    # Read all existing lines
-    with open(PROCESSED_FILE, "r") as file:
-        lines = file.read().splitlines()
+    try:
+        # Load existing IDs
+        if os.path.exists(PROCESSED_FILE):
+            with open(PROCESSED_FILE, "r") as file:
+                existing_ids = file.read().splitlines()
+        else:
+            existing_ids = []
 
-    # Append new IDs
-    lines.extend(newly_copied_post_ids)
+        # Append new IDs
+        combined_ids = existing_ids + newly_copied_post_ids
 
-    # Trim oldest lines
-    if len(lines) > len(newly_copied_post_ids):
-        lines = lines[len(newly_copied_post_ids):]
+        # Trim to last MAX_PROCESSED_IDS entries
+        if len(combined_ids) > MAX_PROCESSED_IDS:
+            combined_ids = combined_ids[-MAX_PROCESSED_IDS:]
 
-    # Rewrite file
-    with open(PROCESSED_FILE, "w") as file:
-        file.write('\n'.join(lines) + '\n')
+        # Save updated list
+        with open(PROCESSED_FILE, "w") as file:
+            file.write('\n'.join(combined_ids) + '\n')
+    except Exception as e:
+        logging.error(f"Failed to update processed_posts.txt: {str(e)}")
+
