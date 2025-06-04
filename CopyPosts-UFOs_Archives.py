@@ -122,7 +122,7 @@ cutoff_time = current_time - time_delta
 processed_posts = load_processed_posts()
 
 # Start of script - Fetch new posts
-print(f"Starting Script. {current_time}")
+print(f"Starting script. {time_delta} scan. {current_time}")
 for submission in source_subreddit.new():
     video_url = None
     audio_url = None
@@ -182,7 +182,7 @@ for submission in source_subreddit.new():
                     if audio_url:
                         audio_downloaded = download_media(audio_url, 'media_audio.mp4')
 
-                        # Combine using ffmpeg if both downloaded
+                        # Combine using ffmpeg if both downloaded. -C to copy without transcoding
                         if video_downloaded and audio_downloaded:
                             cmd = [
                                 "ffmpeg", "-loglevel", "error", "-y",
