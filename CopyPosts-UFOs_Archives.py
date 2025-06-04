@@ -122,7 +122,7 @@ cutoff_time = current_time - time_delta
 processed_posts = load_processed_posts()
 
 # Start of script - Fetch new posts
-print(f"Starting script. {time_delta} scan. {current_time}")
+print(f"Starting script. Scan interval: {time_delta}. Current time: {current_time}")
 for submission in source_subreddit.new():
     video_url = None
     audio_url = None
