@@ -123,6 +123,7 @@ processed_posts = load_processed_posts()
 
 # Start of script - Fetch new posts
 print(f"Starting script. Scan interval: {time_delta}. Current time: {current_time}")
+newly_copied_post_ids = [] # count number of posts to remove old IDs from processed_posts log
 for submission in source_subreddit.new():
     video_url = None
     audio_url = None
@@ -258,7 +259,7 @@ for submission in source_subreddit.new():
             else:
                 new_post.reply(comment_body)
 
-        save_processed_post(submission.id)
+        newly_copied_post_ids.append(submission.id)
         print(f"Copied post {submission.id}: {submission.title}")
         # Respect Reddit API Limit
         time.sleep(10)
@@ -277,3 +278,20 @@ for submission in source_subreddit.new():
         os.remove(audio_file)
     if os.path.exists(merged_file):
         os.remove(merged_file)
+        
+# Append new post IDs and trim oldest lines
+if newly_copied_post_ids:
+    # Read all existing lines
+    with open(PROCESSED_FILE, "r") as file:
+        lines = file.read().splitlines()
+
+    # Append new IDs
+    lines.extend(newly_copied_post_ids)
+
+    # Trim oldest lines
+    if len(lines) > len(newly_copied_post_ids):
+        lines = lines[len(newly_copied_post_ids):]
+
+    # Rewrite file
+    with open(PROCESSED_FILE, "w") as file:
+        file.write('\n'.join(lines) + '\n')
