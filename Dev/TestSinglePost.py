@@ -126,7 +126,7 @@ def get_audio_url(video_url):
 
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
-destination_subreddit = archives_reddit.subreddit('SaltyDevSub')
+destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
 # Parse time delta from command-line argument
 def parse_time_delta(arg):
