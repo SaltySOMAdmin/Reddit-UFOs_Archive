@@ -11,8 +11,16 @@ reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
+# Parse test_post_id from command-line argument
+def get_post_ID():
+    if len(sys.argv) < 2:
+        print("Error: No post ID provided.")
+        print(f"Usage: python {sys.argv[0]} <post_id>")
+        sys.exit(1)  # Exit the script with an error code
+    return sys.argv[1]
 # Replace this with the ID of the post you want to inspect
-submission_id = "1k7i7eq"
+
+submission_id = get_post_ID()
 submission = reddit.submission(id=submission_id)
 
 # Collect relevant info
