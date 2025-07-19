@@ -151,8 +151,14 @@ cutoff_time = current_time - time_delta
 
 processed_posts = load_processed_posts()
 
+# Parse test_post_id from command-line argument
+def get_post_ID(arg):
+    return test_post_id=value
+
+# Get time delta from command-line argument
+time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
 # Test single post by ID
-test_post_id = "1m3w9px"
+test_post_id = get_post_ID
 submission = source_reddit.submission(id=test_post_id)
 
 try:
