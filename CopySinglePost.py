@@ -128,23 +128,6 @@ def get_audio_url(video_url):
 source_subreddit = source_reddit.subreddit('ufos')
 destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
 
-# Parse time delta from command-line argument
-def parse_time_delta(arg):
-    if not arg:
-        return timedelta(minutes=28)  # Default to 28 minutes if no argument
-    match = re.match(r'^(\d+)([mh])$', arg)
-    if not match:
-        logging.error(f"Invalid time delta format: {arg}. Using default 28 minutes.")
-        return timedelta(minutes=28)
-    value, unit = int(match.group(1)), match.group(2)
-    if unit == 'm':
-        return timedelta(minutes=value)
-    elif unit == 'h':
-        return timedelta(hours=value)
-
-# Get time delta from command-line argument
-time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
-
 # Time filtering
 current_time = datetime.now(timezone.utc)
 cutoff_time = current_time - time_delta
@@ -159,8 +142,6 @@ def get_post_ID():
         sys.exit(1)  # Exit the script with an error code
     return sys.argv[1]
 
-# Get time delta from command-line argument
-time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
 # Test single post by ID
 test_post_id = get_post_ID()
 submission = source_reddit.submission(id=test_post_id)

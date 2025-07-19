@@ -12,7 +12,7 @@ reddit = praw.Reddit(
 )
 
 # Replace this with the ID of the post you want to inspect
-submission_id = "1l83slc"
+submission_id = "1k7i7eq"
 submission = reddit.submission(id=submission_id)
 
 # Collect relevant info
