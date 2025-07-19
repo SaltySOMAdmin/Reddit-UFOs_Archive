@@ -1,6 +1,7 @@
 import praw
 import config  # assumes you have a config.py with Reddit credentials
 import json
+import sys
 
 # Set up Reddit API client
 reddit = praw.Reddit(
