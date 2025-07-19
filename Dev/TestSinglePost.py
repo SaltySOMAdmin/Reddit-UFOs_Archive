@@ -152,13 +152,17 @@ cutoff_time = current_time - time_delta
 processed_posts = load_processed_posts()
 
 # Parse test_post_id from command-line argument
-def get_post_ID(arg):
-    return test_post_id=value
+def get_post_ID():
+    if len(sys.argv) < 2:
+        print("Error: No post ID provided.")
+        print(f"Usage: python {sys.argv[0]} <post_id>")
+        sys.exit(1)  # Exit the script with an error code
+    return sys.argv[1]
 
 # Get time delta from command-line argument
 time_delta = parse_time_delta(sys.argv[1] if len(sys.argv) > 1 else None)
 # Test single post by ID
-test_post_id = get_post_ID
+test_post_id = get_post_ID()
 submission = source_reddit.submission(id=test_post_id)
 
 try:
