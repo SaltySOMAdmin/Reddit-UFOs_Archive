@@ -168,7 +168,7 @@ for submission in source_subreddit.new():
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
-             elif getattr(submission, "media_metadata", None):
+            elif getattr(submission, "media_metadata", None):
                 for media_id, media_info in submission.media_metadata.items():
                     if media_info.get('e') == 'RedditVideo':
                         video_url = media_info.get('dashUrl') or media_info.get('hlsUrl')
