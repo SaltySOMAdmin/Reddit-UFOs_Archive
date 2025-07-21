@@ -168,16 +168,6 @@ for submission in source_subreddit.new():
                 file_name = submission.url.split('/')[-1]
                 media_url = download_media(submission.url, file_name)
                 original_media_url = submission.url
-            elif getattr(submission, "media_metadata", None):
-                for media_id, media_info in submission.media_metadata.items():
-                    if media_info.get('e') == 'RedditVideo':
-                        video_url = media_info.get('dashUrl') or media_info.get('hlsUrl')
-                        if video_url and "DASHPlaylist.mpd" in video_url:
-                            base_url = video_url.split('DASHPlaylist.mpd')[0]
-                            video_url = base_url + "DASH_1080.mp4"
-                            original_media_url = video_url
-                            video_downloaded = download_media(video_url, 'media_video.mp4')
-                            media_url = video_file
             elif 'v.redd.it' in submission.url and submission.media:
                 reddit_video = submission.media.get('reddit_video', {})
                 video_url = reddit_video.get('fallback_url')
