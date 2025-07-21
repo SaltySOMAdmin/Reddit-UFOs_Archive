@@ -162,6 +162,20 @@ for submission in source_subreddit.new():
                     downloaded = download_media(img_url, file_name)
                     if downloaded:
                         gallery_images.append(downloaded)
+                        
+        # Handle Reddit video from media_metadata (gallery-like or crossposted video posts)
+        elif submission.media_metadata:
+            for key, meta in submission.media_metadata.items():
+                if meta.get('e') == 'RedditVideo' and 'dashUrl' in meta:
+                    dash_url = meta['dashUrl']
+                    # Attempt highest quality MP4 fallback
+                    video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4")
+                    if requests.head(video_url).status_code != 200:
+                        video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4")
+                    has_audio = True  # Assume audio exists for RedditVideo
+                    is_gif = meta.get('isGif', False)
+                    break
+                    
         # If not self post check for image or video
         elif not is_self_post:
             if submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
