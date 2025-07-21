@@ -32,9 +32,6 @@ archives_reddit = praw.Reddit(
     user_agent=config.destination_user_agent
 )
 
-# File to store processed post IDs
-PROCESSED_FILE = "/home/ubuntu/Reddit-UFOs_Archive/processed_posts.txt"
-
 def merge_video_audio(video_path, audio_url, output_path='merged_video.mp4'):
     audio_path = 'media_audio.mp4'
     # Download audio
@@ -127,12 +124,6 @@ def get_audio_url(video_url):
 # Subreddits
 source_subreddit = source_reddit.subreddit('ufos')
 destination_subreddit = archives_reddit.subreddit('UFOs_Archive')
-
-# Time filtering
-current_time = datetime.now(timezone.utc)
-cutoff_time = current_time - time_delta
-
-processed_posts = load_processed_posts()
 
 # Parse test_post_id from command-line argument
 def get_post_ID():
