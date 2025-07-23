@@ -73,7 +73,7 @@ def download_media(url, file_name):
                 out_file.write(chunk)
         return full_path
     else:
-        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
+        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}. Submission ID: {submission.id}")
         return None
 
 def split_text(text, max_length=10000):
