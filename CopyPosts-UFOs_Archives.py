@@ -166,13 +166,30 @@ for submission in source_subreddit.new():
             for key, meta in submission.media_metadata.items():
                 if meta.get('e') == 'RedditVideo' and 'dashUrl' in meta:
                     dash_url = meta['dashUrl']
-                    video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4")
-                    if requests.head(video_url).status_code != 200:
-                        video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4")
+                    test_urls = [
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_480.mp4")
+                    ]
+                    video_url = None
+                    for url in test_urls:
+                        head_resp = requests.head(url, headers={'User-Agent': 'Mozilla/5.0'})
+                        if head_resp.status_code == 200:
+                            video_url = url
+                            break
+
+                    # Fallback to submission.media.reddit_video.fallback_url if dashUrl fails
+                    if not video_url and submission.media and 'reddit_video' in submission.media:
+                        fallback_url = submission.media['reddit_video'].get('fallback_url')
+                        if fallback_url:
+                            logging.warning(f"dashUrl failed for {submission.id}, using fallback_url.")
+                            video_url = fallback_url
+
                     has_audio = True
                     is_gif = meta.get('isGif', False)
                     original_media_url = video_url
                     break
+
 
         # Handle direct Reddit video (fallback_url)
         elif submission.media and 'reddit_video' in submission.media:
