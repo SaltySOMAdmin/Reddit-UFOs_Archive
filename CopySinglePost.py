@@ -13,7 +13,7 @@ import subprocess
 import shutil
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.INFO, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -145,6 +145,7 @@ try:
         for key, meta in submission.media_metadata.items():
             if meta.get('e') == 'RedditVideo' and 'dashUrl' in meta:
                 dash_url = meta['dashUrl']
+                logging.info(f"Found dash_url: {dash_url} for post {submission.id}")
                 test_urls = [
                     dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
                     dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),

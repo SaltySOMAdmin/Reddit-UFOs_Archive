@@ -167,6 +167,7 @@ for submission in source_subreddit.new():
             for key, meta in submission.media_metadata.items():
                 if meta.get('e') == 'RedditVideo' and 'dashUrl' in meta:
                     dash_url = meta['dashUrl']
+                    logging.info(f"Found dash_url: {dash_url} for post {submission.id}")
                     test_urls = [
                         dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
                         dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),
