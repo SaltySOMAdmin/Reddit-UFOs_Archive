@@ -89,15 +89,18 @@ def split_text(text, max_length=10000):
 
 def get_audio_url(dash_url):
     """
-    Extract the video ID from the video_url and construct the proper audio URL with bitrate.
-    Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
-    Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
+    Extract the video ID from the dash_url and construct the DASH_AUDIO_128 URL.
+    Works with both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
     """
-    match = re.search(r"/asset/([^/]+)/DASHPlaylist\.mpd", dash_url)
+    if not dash_url:
+        return None
+
+    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd", dash_url)
     if match:
         asset_id = match.group(1)
         return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4"
     return None
+
 
 # Parse time delta from command-line argument
 def parse_time_delta(arg):
