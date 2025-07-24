@@ -187,7 +187,7 @@ try:
     if video_url:
         video_downloaded = download_media(video_url, 'media_video.mp4')
         if has_audio and not is_gif:
-            audio_url = get_audio_url(video_url)
+            audio_url = get_audio_url(dash_url)
             if audio_url:
                 audio_downloaded = download_media(audio_url, 'media_audio.mp4')
                 if video_downloaded and audio_downloaded:
