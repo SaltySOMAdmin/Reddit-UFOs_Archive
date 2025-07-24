@@ -114,6 +114,7 @@ submission = source_reddit.submission(id=test_post_id)
 
 video_url = None
 audio_url = None
+dash_url = None
 video_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_video.mp4')
 audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_audio.mp4')
 merged_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'merged_video.mp4')

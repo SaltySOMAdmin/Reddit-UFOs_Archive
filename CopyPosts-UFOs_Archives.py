@@ -128,6 +128,7 @@ newly_copied_post_ids = [] # count number of posts to remove old IDs from proces
 for submission in source_subreddit.new():
     video_url = None
     audio_url = None
+    dash_url = None
     video_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_video.mp4')
     audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_audio.mp4')
     merged_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'merged_video.mp4')
