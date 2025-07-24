@@ -13,7 +13,7 @@ import subprocess
 import shutil
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.INFO, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
