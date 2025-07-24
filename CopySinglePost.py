@@ -179,19 +179,24 @@ try:
         is_gif = reddit_video.get('is_gif', False)
         original_media_url = video_url
 
+        # ✅ Assign dash_url from reddit_video if present
+        dash_url = reddit_video.get('dash_url') or reddit_video.get('dashUrl')
+        logging.info(f"[DEBUG] dash_url from reddit_video: {dash_url} for post {submission.id}")
+
+
     # Handle image
     elif not is_self_post and submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
         file_name = submission.url.split('/')[-1]
         media_url = download_media(submission.url, file_name)
         original_media_url = submission.url
 
-    # Process video
+    # Process video if found
     if video_url:
         video_downloaded = download_media(video_url, 'media_video.mp4')
-        if has_audio and not is_gif:
+        if has_audio and not is_gif and dash_url:
             audio_url = get_audio_url(dash_url)
+            logging.info(f"[DEBUG] Built audio_url: {audio_url} for post {submission.id}")
             if audio_url:
-                logging.info(f"Audio URL being requested: {audio_url}")
                 audio_downloaded = download_media(audio_url, 'media_audio.mp4')
                 if video_downloaded and audio_downloaded:
                     cmd = [
