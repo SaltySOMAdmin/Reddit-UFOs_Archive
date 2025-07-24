@@ -13,7 +13,7 @@ import subprocess
 import shutil
 
 # Set up logging
-logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.ERROR, 
+logging.basicConfig(filename='/home/ubuntu/Reddit-UFOs_Archive/error_log.txt', level=logging.INFO, 
                     format='%(asctime)s %(levelname)s: %(message)s')
 
 # Reddit API credentials
@@ -189,6 +189,7 @@ try:
         if has_audio and not is_gif:
             audio_url = get_audio_url(dash_url)
             if audio_url:
+                logging.info(f"Audio URL being requested: {audio_url}")
                 audio_downloaded = download_media(audio_url, 'media_audio.mp4')
                 if video_downloaded and audio_downloaded:
                     cmd = [
