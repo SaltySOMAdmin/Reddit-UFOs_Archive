@@ -105,7 +105,7 @@ def get_audio_url(dash_url):
 # Parse time delta from command-line argument
 def parse_time_delta(arg):
     if not arg:
-        return timedelta(minutes=28)  # Default to 28 minutes if no argument
+        return timedelta(minutes=42)  # Default to 28 minutes if no argument
     match = re.match(r'^(\d+)([mh])$', arg)
     if not match:
         logging.error(f"Invalid time delta format: {arg}. Using default 28 minutes.")
