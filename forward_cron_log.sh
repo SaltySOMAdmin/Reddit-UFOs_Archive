@@ -10,6 +10,13 @@ if [ ! -s "$LOG_FILE" ]; then
     exit 0
 fi
 
+# Check if the file contains only the one line
+if [ "$(wc -l < "$LOG_FILE")" -eq 1 ] && grep -Fxq "Starting script. Scan interval: 0:42:00." "$LOG_FILE"; then
+    echo "Log file only contains the unimportant start line. Deleting it."
+    rm -f "$LOG_FILE"
+    exit 0
+fi
+
 # Read the log file line by line and send each line as a message to Discord
 while IFS= read -r line
 do
