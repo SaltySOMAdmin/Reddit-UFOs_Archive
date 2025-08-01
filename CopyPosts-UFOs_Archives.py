@@ -334,7 +334,7 @@ if newly_copied_post_ids:
         # Trim to last MAX_PROCESSED_IDS entries
         if len(combined_ids) > MAX_PROCESSED_IDS:
             combined_ids = combined_ids[-MAX_PROCESSED_IDS:]
-
+            print(f"Trimming processed_posts.txt}")
         # Save updated list
         with open(PROCESSED_FILE, "w") as file:
             file.write('\n'.join(combined_ids) + '\n')
