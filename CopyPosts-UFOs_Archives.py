@@ -296,8 +296,6 @@ for submission in source_subreddit.new():
                     time.sleep(5)
             else:
                 new_post.reply(comment_body)
-        if newly_copied_post_ids:
-            print(f"Starting script. Scan interval: {time_delta}.")
         newly_copied_post_ids.append(submission.id)
         print(f"Copied post {submission.id}: {submission.title}")
         # Respect Reddit API Limit
