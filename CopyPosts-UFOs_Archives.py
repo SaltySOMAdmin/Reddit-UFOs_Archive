@@ -126,6 +126,7 @@ cutoff_time = current_time - time_delta
 processed_posts = load_processed_posts()
 
 # Start of script - Fetch new posts
+print(f"Starting script. Scan interval: {time_delta}.")
 newly_copied_post_ids = [] # count number of posts to remove old IDs from processed_posts log
 for submission in source_subreddit.new():
     video_url = None
@@ -296,6 +297,7 @@ for submission in source_subreddit.new():
                     time.sleep(5)
             else:
                 new_post.reply(comment_body)
+
         newly_copied_post_ids.append(submission.id)
         print(f"Copied post {submission.id}: {submission.title}")
         # Respect Reddit API Limit
