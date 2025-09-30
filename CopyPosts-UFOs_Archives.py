@@ -216,34 +216,28 @@ for submission in source_subreddit.new():
 
         # Process video if found
         if video_url:
-            video_downloaded = download_media(video_url, 'media_video.mp4')
             if has_audio and not is_gif and dash_url:
                 audio_url = get_audio_url(dash_url)
                 logging.info(f"[DEBUG] Built audio_url: {audio_url} for post {submission.id}")
                 if audio_url:
-                    audio_downloaded = download_media(audio_url, 'media_audio.mp4')
-
-                    # Combine using ffmpeg if both downloaded
-                    if video_downloaded and audio_downloaded:
-                        cmd = [
-                            "ffmpeg", "-loglevel", "error", "-y",
-                            "-i", video_file,
-                            "-i", audio_file,
-                            "-c", "copy",
-                            merged_file
-                        ]
-                        try:
-                            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                            media_url = merged_file
-                        except subprocess.CalledProcessError as e:
-                            logging.error(f"FFmpeg failed to merge video/audio with return code {e.returncode}")
-                            media_url = video_file
-                    else:
-                        media_url = video_file
+                    # Merge directly from URLs
+                    cmd = [
+                        "ffmpeg", "-loglevel", "error", "-y",
+                        "-i", video_url,
+                        "-i", audio_url,
+                        "-c", "copy",
+                        merged_file
+                    ]
+                    try:
+                        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        media_url = merged_file
+                    except subprocess.CalledProcessError as e:
+                        logging.error(f"FFmpeg failed (URL merge) with return code {e.returncode}, falling back to video only.")
+                        media_url = download_media(video_url, "media_video.mp4")
                 else:
-                    media_url = video_file
+                    media_url = download_media(video_url, "media_video.mp4")
             else:
-                media_url = video_file
+                media_url = download_media(video_url, "media_video.mp4")
 
         new_post = None
         source_flair_text = submission.link_flair_text
