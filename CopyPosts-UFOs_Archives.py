@@ -157,9 +157,42 @@ for submission in source_subreddit.new():
             for item in submission.gallery_data['items']:
                 media_id = item['media_id']
                 meta = submission.media_metadata.get(media_id, {})
-                if 's' in meta and 'u' in meta['s']:
-                    img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                    ext = os.path.splitext(img_url)[-1]
+
+                img_url = None
+                file_name = None
+
+                if meta.get('e') == 'Image' and 's' in meta and 'u' in meta['s']:
+                    # Standard image
+                    img_url = meta['s']['u'].split('?')[0]
+
+                elif meta.get('e') == 'AnimatedImage' and 's' in meta:
+                    # Handle GIFs or MP4s
+                    if 'gif' in meta['s']:
+                        img_url = meta['s']['gif']
+                    elif 'mp4' in meta['s']:
+                        img_url = meta['s']['mp4']
+
+                elif meta.get('e') == 'RedditVideo':
+                    # Handle Reddit-hosted videos in galleries (rare)
+                    dash_url = meta.get('dashUrl')
+                    if dash_url:
+                        # Try higher res streams
+                        test_urls = [
+                            dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
+                            dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),
+                            dash_url.replace("DASHPlaylist.mpd", "DASH_480.mp4")
+                        ]
+                        for url in test_urls:
+                            head_resp = requests.head(url, headers={'User-Agent': 'Mozilla/5.0'})
+                            if head_resp.status_code == 200:
+                                img_url = url
+                                break
+                    # Fallback to reddit_video object if available
+                    if not img_url and submission.media and 'reddit_video' in submission.media:
+                        img_url = submission.media['reddit_video'].get('fallback_url')
+
+                if img_url:
+                    ext = os.path.splitext(img_url.split("?")[0])[-1]
                     file_name = f"{media_id}{ext}"
                     downloaded = download_media(img_url, file_name)
                     if downloaded:
@@ -328,7 +361,7 @@ if newly_copied_post_ids:
         # Trim to last MAX_PROCESSED_IDS entries
         if len(combined_ids) > MAX_PROCESSED_IDS:
             combined_ids = combined_ids[-MAX_PROCESSED_IDS:]
-
+            print(f"Trimming processed_posts.txt")
         # Save updated list
         with open(PROCESSED_FILE, "w") as file:
             file.write('\n'.join(combined_ids) + '\n')
