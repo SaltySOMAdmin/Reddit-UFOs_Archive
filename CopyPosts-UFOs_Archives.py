@@ -265,7 +265,7 @@ for submission in source_subreddit.new():
                         subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                         media_url = merged_file
                     except subprocess.CalledProcessError as e:
-                        logging.error(f"FFmpeg failed (URL merge) with return code {e.returncode}, falling back to video only.")
+                        logging.error(f"FFmpeg failed (URL merge) with return code {e.returncode}, falling back to video only. {submission.id}")
                         media_url = download_media(video_url, "media_video.mp4")
                 else:
                     media_url = download_media(video_url, "media_video.mp4")
