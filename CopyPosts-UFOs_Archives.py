@@ -93,7 +93,7 @@ def get_audio_url_from_fallback(video_url):
     """
     if not video_url:
         return None
-    return video_url.rsplit('/', 1)[0] + "/CMAF_AUDIO_64.mp4?source=fallback"
+    return video_url.rsplit('/', 1)[0] + "/CMAF_AUDIO_64.mp4"
 
 
 # Parse time delta from command-line argument
