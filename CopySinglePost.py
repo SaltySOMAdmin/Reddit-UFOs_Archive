@@ -94,19 +94,13 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
-def get_audio_url(dash_url):
+def get_audio_url_from_fallback(video_url):
     """
-    Extract the video ID from the dash_url and construct the DASH_AUDIO_128 URL.
-    Works with both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
+    Construct the new CMAF_AUDIO_64 URL from the fallback video URL. When reddit changes it again pull new url from MPD with debug script. Open in NP++
     """
-    if not dash_url:
+    if not video_url:
         return None
-
-    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd(\?.*)?", dash_url)
-    if match:
-        asset_id = match.group(1)
-        return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4"
-    return None
+    return video_url.rsplit('/', 1)[0] + "/CMAF_AUDIO_64.mp4?source=fallback"
 
 
 # --- Main Script ---
@@ -229,8 +223,8 @@ try:
 
     # Process video if found
     if video_url:
-        if has_audio and not is_gif and dash_url:
-            audio_url = get_audio_url(dash_url)
+        if has_audio and not is_gif:
+            audio_url = get_audio_url_from_fallback(video_url)
             logging.info(f"[DEBUG] Built audio_url: {audio_url} for post {submission.id}")
             if audio_url:
                 # Merge directly from URLs

@@ -96,7 +96,7 @@ def split_text(text, max_length=10000):
 
 def get_audio_url_from_fallback(video_url):
     """
-    Construct the new CMAF_AUDIO_64 URL from the fallback video URL. When reddit changes it again pull new url from MPD. Open in NP++
+    Construct the new CMAF_AUDIO_64 URL from the fallback video URL. When reddit changes it again pull new url from MPD with debug script. Open in NP++
     """
     if not video_url:
         return None
