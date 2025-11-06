@@ -80,7 +80,7 @@ def download_media(url, file_name):
                 out_file.write(chunk)
         return full_path
     else:
-        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}")
+        logging.error(f"Failed to download media from {url}. Status code: {response.status_code}. Submission ID: {submission.id}")
         return None
 
 def split_text(text, max_length=10000):
@@ -94,22 +94,20 @@ def split_text(text, max_length=10000):
     chunks.append(text)
     return chunks
 
-def get_audio_url(video_url):
+def get_audio_url(dash_url):
     """
-    Extract the video ID from the video_url and construct the proper audio URL with bitrate.
-    Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
-    Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
+    Extract the video ID from the dash_url and construct the DASH_AUDIO_128 URL.
+    Works with both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
     """
-    if not video_url:
+    if not dash_url:
         return None
 
-    # Match both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
-    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd(\?.*)?", video_url)
+    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd(\?.*)?", dash_url)
     if match:
         asset_id = match.group(1)
-        query_token = match.group(2) or ""  # preserve ?a=... if present
-        return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4{query_token}"
+        return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4"
     return None
+
 
 # --- Main Script ---
 
@@ -119,6 +117,7 @@ submission = source_reddit.submission(id=test_post_id)
 
 video_url = None
 audio_url = None
+dash_url = None
 video_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_video.mp4')
 audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'media_audio.mp4')
 merged_file = os.path.join(MEDIA_DOWNLOAD_DIR, 'merged_video.mp4')
@@ -131,31 +130,83 @@ try:
     title = submission.title
     is_self_post = submission.is_self
 
-    # Handle gallery
+    # If image gallery
     if hasattr(submission, 'is_gallery') and submission.is_gallery:
         for item in submission.gallery_data['items']:
             media_id = item['media_id']
             meta = submission.media_metadata.get(media_id, {})
-            if 's' in meta and 'u' in meta['s']:
-                img_url = meta['s']['u'].split('?')[0].replace("&", "&")
-                ext = os.path.splitext(img_url)[-1]
+
+            img_url = None
+            file_name = None
+
+            if meta.get('e') == 'Image' and 's' in meta and 'u' in meta['s']:
+                # Standard image
+                img_url = meta['s']['u'].split('?')[0]
+
+            elif meta.get('e') == 'AnimatedImage' and 's' in meta:
+                # Handle GIFs or MP4s
+                if 'gif' in meta['s']:
+                    img_url = meta['s']['gif']
+                elif 'mp4' in meta['s']:
+                    img_url = meta['s']['mp4']
+
+            elif meta.get('e') == 'RedditVideo':
+                # Handle Reddit-hosted videos in galleries (rare)
+                dash_url = meta.get('dashUrl')
+                if dash_url:
+                    # Try higher res streams
+                    test_urls = [
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),
+                        dash_url.replace("DASHPlaylist.mpd", "DASH_480.mp4")
+                    ]
+                    for url in test_urls:
+                        head_resp = requests.head(url, headers={'User-Agent': 'Mozilla/5.0'})
+                        if head_resp.status_code == 200:
+                            img_url = url
+                            break
+                # Fallback to reddit_video object if available
+                if not img_url and submission.media and 'reddit_video' in submission.media:
+                    img_url = submission.media['reddit_video'].get('fallback_url')
+
+            if img_url:
+                ext = os.path.splitext(img_url.split("?")[0])[-1]
                 file_name = f"{media_id}{ext}"
                 downloaded = download_media(img_url, file_name)
                 if downloaded:
                     gallery_images.append(downloaded)
+
 
     # Handle Reddit video from media_metadata
     elif hasattr(submission, "media_metadata") and submission.media_metadata:
         for key, meta in submission.media_metadata.items():
             if meta.get('e') == 'RedditVideo' and 'dashUrl' in meta:
                 dash_url = meta['dashUrl']
-                video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4")
-                if requests.head(video_url).status_code != 200:
-                    video_url = dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4")
+                logging.info(f"Found dash_url: {dash_url} for post {submission.id}")
+                test_urls = [
+                    dash_url.replace("DASHPlaylist.mpd", "DASH_1080.mp4"),
+                    dash_url.replace("DASHPlaylist.mpd", "DASH_720.mp4"),
+                    dash_url.replace("DASHPlaylist.mpd", "DASH_480.mp4")
+                ]
+                video_url = None
+                for url in test_urls:
+                    head_resp = requests.head(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    if head_resp.status_code == 200:
+                        video_url = url
+                        break
+
+                # Fallback to submission.media.reddit_video.fallback_url if dashUrl fails
+                if not video_url and submission.media and 'reddit_video' in submission.media:
+                    fallback_url = submission.media['reddit_video'].get('fallback_url')
+                    if fallback_url:
+                        logging.warning(f"dashUrl failed for {submission.id}, using fallback_url.")
+                        video_url = fallback_url
+
                 has_audio = True
                 is_gif = meta.get('isGif', False)
                 original_media_url = video_url
                 break
+
 
     # Handle direct Reddit video
     elif submission.media and 'reddit_video' in submission.media:
@@ -165,39 +216,42 @@ try:
         is_gif = reddit_video.get('is_gif', False)
         original_media_url = video_url
 
+        # ✅ Assign dash_url from reddit_video if present
+        dash_url = reddit_video.get('dash_url') or reddit_video.get('dashUrl')
+        logging.info(f"[DEBUG] dash_url from reddit_video: {dash_url} for post {submission.id}")
+
+
     # Handle image
     elif not is_self_post and submission.url.endswith(('jpg', 'jpeg', 'png', 'gif')):
         file_name = submission.url.split('/')[-1]
         media_url = download_media(submission.url, file_name)
         original_media_url = submission.url
 
-    # Process video
+    # Process video if found
     if video_url:
-        video_downloaded = download_media(video_url, 'media_video.mp4')
-        if has_audio and not is_gif:
-            audio_url = get_audio_url(video_url)
+        if has_audio and not is_gif and dash_url:
+            audio_url = get_audio_url(dash_url)
+            logging.info(f"[DEBUG] Built audio_url: {audio_url} for post {submission.id}")
             if audio_url:
-                audio_downloaded = download_media(audio_url, 'media_audio.mp4')
-                if video_downloaded and audio_downloaded:
-                    cmd = [
-                        "ffmpeg", "-loglevel", "error", "-y",
-                        "-i", video_file,
-                        "-i", audio_file,
-                        "-c", "copy",
-                        merged_file
-                    ]
-                    try:
-                        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        media_url = merged_file
-                    except subprocess.CalledProcessError as e:
-                        logging.error(f"FFmpeg failed to merge video/audio with return code {e.returncode}")
-                        media_url = video_file
-                else:
-                    media_url = video_file
+                # Merge directly from URLs
+                cmd = [
+                    "ffmpeg", "-loglevel", "error", "-y",
+                    "-i", video_url,
+                    "-i", audio_url,
+                    "-c", "copy",
+                    merged_file
+                ]
+                try:
+                    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    media_url = merged_file
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"FFmpeg failed (URL merge) with return code {e.returncode}, falling back to video only.")
+                    media_url = download_media(video_url, "media_video.mp4")
             else:
-                media_url = video_file
+                media_url = download_media(video_url, "media_video.mp4")
         else:
-            media_url = video_file
+            media_url = download_media(video_url, "media_video.mp4")
+
 
     # Post to archive
     new_post = None
@@ -230,7 +284,7 @@ try:
 
     # Comment info
     if new_post:
-        comment_body = f"**Original post by u/:** [Here](https://www.reddit.com{submission.permalink})\n"
+        comment_body = f"**Original post by u/user:** [Here](https://www.reddit.com{submission.permalink})\n"
         comment_body += f"\n**Original Post ID:** {submission.id}"
         if original_media_url:
             comment_body += f"\n\n**Direct link to media:** [Media Here]({original_media_url})"

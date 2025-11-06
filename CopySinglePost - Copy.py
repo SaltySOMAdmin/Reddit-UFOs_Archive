@@ -102,7 +102,7 @@ def get_audio_url(dash_url):
     if not dash_url:
         return None
 
-    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd(\?.*)?", dash_url)
+    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd", dash_url)
     if match:
         asset_id = match.group(1)
         return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4"
