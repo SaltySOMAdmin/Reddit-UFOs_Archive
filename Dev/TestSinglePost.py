@@ -100,7 +100,7 @@ def get_audio_url(video_url):
     Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
     Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
     """
-     if not dash_url:
+    if not dash_url:
         return None
 
     # Match both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
