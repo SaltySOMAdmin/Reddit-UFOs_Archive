@@ -100,10 +100,15 @@ def get_audio_url(video_url):
     Example input: https://v.redd.it/916xfnxxvd2f1/DASH_1080.mp4
     Output: https://v.redd.it/916xfnxxvd2f1/DASH_AUDIO_128.mp4
     """
-    match = re.search(r"v\.redd\.it/([^/]+)", video_url)
+     if not dash_url:
+        return None
+
+    # Match both /asset/{id}/DASHPlaylist.mpd and /{id}/DASHPlaylist.mpd
+    match = re.search(r"/(?:asset/)?([^/]+)/DASHPlaylist\.mpd(\?.*)?", dash_url)
     if match:
-        video_id = match.group(1)
-        return f"https://v.redd.it/{video_id}/DASH_AUDIO_128.mp4"
+        asset_id = match.group(1)
+        query_token = match.group(2) or ""  # preserve ?a=... if present
+        return f"https://v.redd.it/{asset_id}/DASH_AUDIO_128.mp4{query_token}"
     return None
 
 # --- Main Script ---
