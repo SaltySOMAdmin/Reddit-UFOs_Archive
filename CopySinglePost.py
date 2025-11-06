@@ -233,24 +233,59 @@ try:
             audio_url = get_audio_url(dash_url)
             logging.info(f"[DEBUG] Built audio_url: {audio_url} for post {submission.id}")
             if audio_url:
-                # Merge directly from URLs
-                cmd = [
-                    "ffmpeg", "-loglevel", "error", "-y",
-                    "-i", video_url,
-                    "-i", audio_url,
-                    "-c", "copy",
-                    merged_file
-                ]
-                try:
-                    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    media_url = merged_file
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"FFmpeg failed (URL merge) with return code {e.returncode}, falling back to video only.")
-                    media_url = download_media(video_url, "media_video.mp4")
+                # --- Download both video and audio locally first ---
+                video_file = os.path.join(MEDIA_DOWNLOAD_DIR, "media_video.mp4")
+                audio_file = os.path.join(MEDIA_DOWNLOAD_DIR, "media_audio.mp4")
+
+                def safe_download(url, filename):
+                    headers = {
+                        "User-Agent": "Mozilla/5.0",
+                        "Referer": "https://www.reddit.com"
+                    }
+                    full_path = os.path.join(MEDIA_DOWNLOAD_DIR, filename)
+                    try:
+                        resp = requests.get(url, stream=True, headers=headers, timeout=30)
+                        if resp.status_code == 200:
+                            with open(full_path, "wb") as f:
+                                for chunk in resp.iter_content(chunk_size=8192):
+                                    f.write(chunk)
+                            return full_path
+                        else:
+                            logging.error(f"Download failed {resp.status_code} for {url}")
+                            return None
+                    except Exception as e:
+                        logging.error(f"Exception during download {url}: {e}")
+                        return None
+
+                video_path = safe_download(video_url, "media_video.mp4")
+                audio_path = safe_download(audio_url, "media_audio.mp4")
+
+                if (
+                    video_path and os.path.exists(video_path) and os.path.getsize(video_path) > 0
+                    and audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0
+                ):
+                    cmd = [
+                        "ffmpeg", "-loglevel", "error", "-y",
+                        "-i", video_path,
+                        "-i", audio_path,
+                        "-c", "copy",
+                        merged_file
+                    ]
+                    try:
+                        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        media_url = merged_file
+                        logging.info(f"Successfully merged video+audio for {submission.id}")
+                    except subprocess.CalledProcessError as e:
+                        logging.error(f"FFmpeg failed (local merge) with return code {e.returncode}, using video only. {submission.id}")
+                        media_url = video_path
+                else:
+                    logging.error(f"Failed to download both video and audio for {submission.id}")
+                    media_url = video_path or download_media(video_url, "media_video.mp4")
             else:
                 media_url = download_media(video_url, "media_video.mp4")
         else:
             media_url = download_media(video_url, "media_video.mp4")
+
 
 
     # Post to archive
