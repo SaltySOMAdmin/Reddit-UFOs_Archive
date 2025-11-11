@@ -343,22 +343,27 @@ for submission in source_subreddit.new():
 # Append new post IDs and trim oldest lines
 if newly_copied_post_ids:
     try:
-        # Load existing IDs
+        # Read existing IDs (if any)
+        existing_ids = []
         if os.path.exists(PROCESSED_FILE):
-            with open(PROCESSED_FILE, "r") as file:
-                existing_ids = file.read().splitlines()
-        else:
-            existing_ids = []
+            with open(PROCESSED_FILE, "r") as f:
+                existing_ids = f.read().splitlines()
 
-        # Append new IDs
-        combined_ids = existing_ids + newly_copied_post_ids
+        # Merge and deduplicate, preserving order (oldest first)
+        all_ids = existing_ids + newly_copied_post_ids
+        seen = set()
+        unique_ids = [x for x in all_ids if not (x in seen or seen.add(x))]
 
-        # Trim to last MAX_PROCESSED_IDS entries
-        if len(combined_ids) > MAX_PROCESSED_IDS:
-            combined_ids = combined_ids[-MAX_PROCESSED_IDS:]
-            print(f"Trimming processed_posts.txt")
-        # Save updated list
-        with open(PROCESSED_FILE, "w") as file:
-            file.write('\n'.join(combined_ids) + '\n')
+        # Trim aggressively — keep only newest MAX_PROCESSED_IDS
+        if len(unique_ids) > MAX_PROCESSED_IDS:
+            unique_ids = unique_ids[-MAX_PROCESSED_IDS:]
+            print(f"Trimmed processed_posts.txt to {len(unique_ids)} entries.")
+
+        # Write atomically using a temporary file
+        temp_path = PROCESSED_FILE + ".tmp"
+        with open(temp_path, "w") as f:
+            f.write("\n".join(unique_ids) + "\n")
+        os.replace(temp_path, PROCESSED_FILE)  # atomic move
+
     except Exception as e:
-        logging.error(f"Failed to update processed_posts.txt: {str(e)}")
+        logging.error(f"Failed to update processed_posts.txt safely: {str(e)}")
