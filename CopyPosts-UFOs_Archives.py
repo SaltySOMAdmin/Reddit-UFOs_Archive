@@ -344,22 +344,21 @@ for submission in source_subreddit.new():
 if newly_copied_post_ids:
     try:
         # Load existing IDs
-        existing_ids = []
         if os.path.exists(PROCESSED_FILE):
             with open(PROCESSED_FILE, "r") as file:
                 existing_ids = file.read().splitlines()
+        else:
+            existing_ids = []
 
-        # Combine and deduplicate (preserve order: old first, then new)
+        # Append new IDs
         combined_ids = existing_ids + newly_copied_post_ids
-        seen = set()
-        deduped_ids = []
-        for pid in combined_ids:
-            if pid not in seen:
-                seen.add(pid)
-                deduped_ids.append(pid)
 
-        # Trim aggressively to last MAX_PROCESSED_IDS
-        if len(deduped_ids) > MAX_PROCESSED_IDS:
-            deduped_ids = deduped_ids[-MAX_PROCESSED_IDS:]
-            print("Trimming processed_posts.txt")
-
+        # Trim to last MAX_PROCESSED_IDS entries
+        if len(combined_ids) > MAX_PROCESSED_IDS:
+            combined_ids = combined_ids[-MAX_PROCESSED_IDS:]
+            print(f"Trimming processed_posts.txt")
+        # Save updated list
+        with open(PROCESSED_FILE, "w") as file:
+            file.write('\n'.join(combined_ids) + '\n')
+    except Exception as e:
+        logging.error(f"Failed to update processed_posts.txt: {str(e)}")
