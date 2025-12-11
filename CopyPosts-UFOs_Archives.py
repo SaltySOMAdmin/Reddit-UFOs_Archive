@@ -152,6 +152,11 @@ for submission in source_subreddit.new():
                 media_id = item['media_id']
                 meta = submission.media_metadata.get(media_id, {})
 
+                # SKIP failed or invalid gallery items
+                if meta.get("status") != "valid":
+                    logging.warning(f"Skipping failed gallery item {media_id} in post {submission.id}")
+                    continue
+
                 img_url = None
                 file_name = None
 
@@ -282,8 +287,14 @@ for submission in source_subreddit.new():
             elif media_url.endswith('mp4'):
                 new_post = destination_subreddit.submit_video(title, video_path=media_url)
         else:
-            new_post = destination_subreddit.submit(title, url=submission.url)
-
+            if submission.url and submission.url.startswith("http"):
+                new_post = destination_subreddit.submit(title, url=submission.url)
+            else:
+                logging.error(
+                    f"Cannot submit post {submission.id}: missing media and invalid URL."
+                )
+                continue
+                
         # Set post flair from source
         if new_post and source_flair_text:
             matching_flair = None
