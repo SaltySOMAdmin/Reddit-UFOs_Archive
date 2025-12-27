@@ -279,8 +279,16 @@ for submission in source_subreddit.new():
         if is_self_post:
             new_post = destination_subreddit.submit(title, selftext=submission.selftext)
         elif gallery_images:
-            images = [{'image_path': path} for path in gallery_images]
-            new_post = destination_subreddit.submit_gallery(title, images=images)
+            if len(gallery_images) >= 2:
+                images = [{'image_path': path} for path in gallery_images]
+                new_post = destination_subreddit.submit_gallery(title, images=images)
+            else:
+                # Reddit requires at least 2 images for galleries
+                single_image = gallery_images[0]
+                new_post = destination_subreddit.submit_image(
+                    title,
+                    image_path=single_image
+                )
         elif media_url and os.path.exists(media_url) and os.path.getsize(media_url) > 0:
             if media_url.endswith(('jpg', 'jpeg', 'png', 'gif')):
                 new_post = destination_subreddit.submit_image(title, image_path=media_url)
